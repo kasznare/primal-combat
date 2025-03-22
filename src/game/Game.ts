@@ -64,6 +64,18 @@ export class Game {
     this.controls.minPolarAngle = Math.PI / 6;
     this.controls.maxPolarAngle = Math.PI / 2;
 
+    // Remap mouse buttons: disable left-click (set to -1) and use right-click for rotation.
+    this.controls.mouseButtons = {
+      LEFT: -1, // disable left-click camera controls
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.ROTATE,
+    };
+
+    // Disable the default context menu on right-click.
+    this.renderer.domElement.addEventListener("contextmenu", (event) =>
+      event.preventDefault()
+    );
+
     setupEnvironment(this.scene);
 
     // 6) Post Processing (moved to scene/PostProcessing.ts)
@@ -244,6 +256,5 @@ export class Game {
     // Render the scene.
     // this.renderer.render(this.scene, this.camera);
     this.composer.render();
-
   };
 }
