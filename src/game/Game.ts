@@ -8,6 +8,7 @@ import * as CANNON from 'cannon-es';
 import { InputManager } from './InputManager.js';
 import { AIController } from './AIController.js';
 import { GameStateManager } from './GameStateManager.js';
+import { SceneSelector } from '../scene/SceneSelector.js';
 
 export class Game {
   public renderer: THREE.WebGLRenderer;
@@ -66,11 +67,15 @@ export class Game {
     // Setup arena.
     this.arena = new Arena({
       name: 'Forest',
-      groundColor: 0x556B2F,
+      groundColor: 0x556B2F,  
       skyColor: 0x87CEEB,
     });
     this.scene.add(this.arena.scene);
-    this.physicsEngine.world.addBody(this.arena.getPhysicsGround());
+
+    new SceneSelector(this.scene);
+
+    
+    this.physicsEngine.world.addBody(this.arena.getPhysicsGround(this.physicsEngine));
 
     // Add grid helper.
     const gridSize = 100;
@@ -87,69 +92,62 @@ export class Game {
     this.aiController = new AIController();
     this.gameStateManager = new GameStateManager();
 
-    // Setup characters based on the dropdown selections.
-    this.setupCharacters();
-
-    // Start the game loop.
-    this.animate();
+    document.addEventListener('startBattle', () => {
+      this.setupCharacters(this.physicsEngine);
+      this.animate();
+    });
   }
 
-  setupCharacters() {
+  setupCharacters(physicsEngine: PhysicsEngine) {
     // Define properties for different entity types.
     const entityProps: { [key: string]: any } = {
-      'Human':   { size: 2,   weight: 70,   maxVelocity: 10, maxAcceleration: 3, health: 100, color: 0xFAD6A5 },
-      'Bear':    { size: 3,   weight: 350,  maxVelocity: 15, maxAcceleration: 5, health: 200, color: 0x8B4513 },
-      'Cheetah': { size: 1.5, weight: 50,   maxVelocity: 30, maxAcceleration: 9, health: 80,  color: 0xC0C0C0 },
-      'Dragon':  { size: 10,  weight: 2000, maxVelocity: 30, maxAcceleration: 5, health: 500, color: 0xFF0000 }
+      'Human':   { dimensions: { width: 0.5, height: 1.8, depth: 0.5 }, weight: 70, maxVelocity: 10, maxAcceleration: 3, health: 100, color: 0xFAD6A5 },
+      'Bear':    { dimensions: { width: 1.2, height: 1.0, depth: 2.0 }, weight: 350, maxVelocity: 15, maxAcceleration: 5, health: 200, color: 0x8B4513 },
+      'Cheetah': { dimensions: { width: 0.4, height: 1.0, depth: 0.8 }, weight: 50, maxVelocity: 30, maxAcceleration: 9, health: 80,  color: 0xC0C0C0 },
+      'Dragon':  { dimensions: { width: 4, height: 8, depth: 6 }, weight: 2000, maxVelocity: 30, maxAcceleration: 5, health: 500, color: 0xFF0000 }
     };
+    
 
-    // Get selected character from the start menu.
+    // Get selected values from dropdowns.
     const charSelectElem = document.getElementById('character-select') as HTMLSelectElement;
     const selectedCharacter = charSelectElem ? charSelectElem.value : 'Human';
-    console.log("Selected player entity:", charSelectElem.value);
-
     const playerProps = entityProps[selectedCharacter] || entityProps['Human'];
+
+    const oppSelectElem = document.getElementById('opponent-select') as HTMLSelectElement;
+    const selectedOpponent = oppSelectElem ? oppSelectElem.value : 'Bear';
+    const opponentProps = entityProps[selectedOpponent] || entityProps['Bear'];
 
     // Create the player's character.
     const playerCharacter = new Character({
       name: selectedCharacter,
       color: playerProps.color,
       weight: playerProps.weight,
-      size: playerProps.size,
+      dimensions: playerProps.dimensions,
       maxVelocity: playerProps.maxVelocity,
       maxAcceleration: playerProps.maxAcceleration,
       movementType: MovementType.Grounded,
       health: playerProps.health,
-    });
-
-    // Get selected opponent from the start menu.
-    const oppSelectElem = document.getElementById('opponent-select') as HTMLSelectElement;
-    const selectedOpponent = oppSelectElem ? oppSelectElem.value : 'Bear';
-    console.log("Selected opponent entity:", oppSelectElem);
-
-    const opponentProps = entityProps[selectedOpponent] || entityProps['Bear'];
+    },physicsEngine);
 
     // Create the opponent character.
     const opponentCharacter = new Character({
       name: selectedOpponent,
       color: opponentProps.color,
       weight: opponentProps.weight,
-      size: opponentProps.size,
+      dimensions: opponentProps.dimensions,
       maxVelocity: opponentProps.maxVelocity,
       maxAcceleration: opponentProps.maxAcceleration,
       movementType: MovementType.Grounded,
       health: opponentProps.health,
-    });
+    },physicsEngine);
 
     // Position characters.
-    playerCharacter.body.position.set(0, playerCharacter.size, 0);
-    opponentCharacter.body.position.set(20, opponentCharacter.size, 0);
+    playerCharacter.body.position.set(0, playerCharacter.dimensions.height, 0);
+    opponentCharacter.body.position.set(20, opponentCharacter.dimensions.height, 0);
 
     // Add to scene.
     this.scene.add(playerCharacter.mesh);
     this.scene.add(opponentCharacter.mesh);
-
-    // Add physics bodies.
     this.physicsEngine.world.addBody(playerCharacter.body);
     this.physicsEngine.world.addBody(opponentCharacter.body);
 
@@ -172,11 +170,11 @@ export class Game {
         this.playerCharacter.body.velocity.x = moveDirection.x * moveSpeed;
         this.playerCharacter.body.velocity.z = moveDirection.z * moveSpeed;
       } else {
-        this.playerCharacter.body.velocity.x *= 0.9;
-        this.playerCharacter.body.velocity.z *= 0.9;
+        this.playerCharacter.body.velocity.x *= 0.98;
+        this.playerCharacter.body.velocity.z *= 0.98;
       }
       if (this.inputManager.isKeyPressed('Space')) {
-        const groundLevel = this.playerCharacter.size;
+        const groundLevel = this.playerCharacter.dimensions.height;
         if (this.playerCharacter.body.position.y <= groundLevel + 0.1) {
           const jumpVelocity = 8;
           this.playerCharacter.body.velocity.y = jumpVelocity;
@@ -220,7 +218,7 @@ export class Game {
     }
     this.controls.update();
 
-    // Render.
+    // Render the scene.
     this.renderer.render(this.scene, this.camera);
   }
 }

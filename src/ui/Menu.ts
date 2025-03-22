@@ -56,6 +56,8 @@ export class Menu {
       startButton.addEventListener('click', () => {
         // On click, remove the menu overlay.
         menuDiv.style.display = 'none';
+        const event = new CustomEvent('startBattle');
+        document.dispatchEvent(event);
         // Future logic: dispatch selection events or update game state.
       });
       menuDiv.appendChild(startButton);

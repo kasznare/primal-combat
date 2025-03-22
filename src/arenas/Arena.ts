@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { PhysicsEngine } from '../physics/PhysicsEngine';
 
 export interface IArenaOptions {
   name: string;
@@ -41,12 +42,14 @@ export class Arena {
   }
 
   // Returns a static physics ground body corresponding to the visible ground.
-  public getPhysicsGround(): CANNON.Body {
+  public getPhysicsGround(physicsEngine: { groundMaterial: CANNON.Material }): CANNON.Body {
     const groundShape = new CANNON.Plane();
-    const groundBody = new CANNON.Body({ mass: 0 }); // static
+    const groundBody = new CANNON.Body({ mass: 0 });
     groundBody.addShape(groundShape);
-    // Rotate to match the Three.js ground plane orientation.
     groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    // Assign the ground material.
+    groundBody.material = physicsEngine.groundMaterial; /* reference to your PhysicsEngine.groundMaterial */;
     return groundBody;
   }
+  
 }
