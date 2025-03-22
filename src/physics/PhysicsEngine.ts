@@ -21,7 +21,7 @@ export class PhysicsEngine {
       this.groundMaterial,
       this.characterMaterial,
       {
-        friction: 0.1, // lower friction for smooth sliding
+        friction: 0.01, // lower friction for smooth sliding
         restitution: 0.0,
       }
     );
@@ -29,7 +29,7 @@ export class PhysicsEngine {
       this.staticMaterial,
       this.characterMaterial,
       {
-        friction: 0.1, // lower friction for smooth sliding
+        friction: 0.01, // lower friction for smooth sliding
         restitution: 0.0,
       }
     );
@@ -37,7 +37,7 @@ export class PhysicsEngine {
       this.groundMaterial,
       this.staticMaterial,
       {
-        friction: 0.1, // lower friction for smooth sliding
+        friction: 0.01, // lower friction for smooth sliding
         restitution: 0.0,
       }
     );
