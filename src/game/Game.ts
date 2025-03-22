@@ -9,10 +9,18 @@ import { InputManager } from "./InputManager.js";
 import { AIController } from "./AIController.js";
 import { GameStateManager } from "./GameStateManager.js";
 import { SceneSelector } from "../scene/SceneSelector.js";
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
 export class Game {
   public renderer: THREE.WebGLRenderer;
   public scene: THREE.Scene;
+  public composer: EffectComposer;
+
   public camera: THREE.PerspectiveCamera;
   public controls: OrbitControls;
   public physicsEngine: PhysicsEngine;
@@ -29,6 +37,11 @@ export class Game {
     // Create renderer.
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
     container.appendChild(this.renderer.domElement);
 
     // Create camera.
@@ -53,12 +66,42 @@ export class Game {
     // Create the scene.
     this.scene = new THREE.Scene();
 
-    // Add lighting.
+    // --- Lighting ---
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     this.scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(10, 20, 10);
+    directionalLight.castShadow = true;
+    // Adjust shadow map size for better quality.
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
     this.scene.add(directionalLight);
+
+    const rgbeLoader = new RGBELoader();
+    // rgbeLoader.setDataType(THREE.UnsignedByteType); // For LDR-like behavior.
+    rgbeLoader.load('/golden_gate_hills_1k.hdr', (texture) => {
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      this.scene.environment = texture;
+      this.scene.background = texture; // Optional: also use it as the background.
+    });
+  // --- Post-Processing Setup ---
+  this.composer = new EffectComposer(this.renderer);
+  // Render pass: renders the scene.
+  const renderPass = new RenderPass(this.scene, this.camera);
+  this.composer.addPass(renderPass);
+  // FXAA pass: smooths out jagged edges.
+  const fxaaPass = new ShaderPass(FXAAShader);
+  fxaaPass.renderToScreen = false; // We'll chain bloom afterwards.
+  this.composer.addPass(fxaaPass);
+  // Bloom pass: adds a glow effect to bright areas.
+  const bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.5, // strength
+    0.4, // radius
+    0.85 // threshold
+  );
+  bloomPass.renderToScreen = true;
+  this.composer.addPass(bloomPass);
 
     // Initialize clock and physics engine.
     this.clock = new THREE.Clock();
@@ -104,7 +147,7 @@ export class Game {
 
     document.addEventListener("startBattle", () => {
       this.setupCharacters(this.physicsEngine);
-      this.animate();
+      this.animate(0);
     });
   }
 
@@ -220,7 +263,7 @@ export class Game {
     
     // Update lastFrameTime.
     this.lastFrameTime = timestamp;
-    
+
   //  console.log('animate')
   // Check for pause toggle using Escape.
   if (this.inputManager.isKeyPressed('Escape')) {
@@ -247,7 +290,7 @@ export class Game {
     return; // Skip physics, AI, and input processing.
   }
 
-    requestAnimationFrame(this.animate);
+    // requestAnimationFrame(this.animate);
     const delta = this.clock.getDelta();
 
     // Process player input.
