@@ -1,106 +1,60 @@
-// src/game/CharacterSetup.ts
-import * as THREE from "three";
-import { PhysicsEngine } from "../physics/PhysicsEngine";
-import { Character, MovementType } from "../entities/Character";
 
-interface EntityProps {
-  dimensions: { width: number; height: number; depth: number };
-  weight: number;
-  maxVelocity: number;
-  maxAcceleration: number;
-  health: number;
-  color: number;
-}
+// Import Cheetah and Dragon similarly.
+import * as THREE from 'three';
+import { PhysicsEngine } from '../physics/PhysicsEngine';
+import { MovementType } from '../entities/Character';
+import { Bear } from '../entities/Bear';
+import { Human } from '../entities/Human';
 
-const entityPropsMap: Record<string, EntityProps> = {
-  Human: {
-    dimensions: { width: 0.5, height: 1.8, depth: 0.5 },
-    weight: 70,
-    maxVelocity: 10,
-    maxAcceleration: 3,
-    health: 100,
-    color: 0xfad6a5,
-  },
-  Bear: {
-    dimensions: { width: 1.2, height: 1.0, depth: 2.0 },
-    weight: 350,
-    maxVelocity: 15,
-    maxAcceleration: 5,
-    health: 200,
-    color: 0x8b4513,
-  },
-  Cheetah: {
-    dimensions: { width: 0.4, height: 1.0, depth: 0.8 },
-    weight: 50,
-    maxVelocity: 30,
-    maxAcceleration: 9,
-    health: 80,
-    color: 0xc0c0c0,
-  },
-  Dragon: {
-    dimensions: { width: 4, height: 8, depth: 6 },
-    weight: 2000,
-    maxVelocity: 30,
-    maxAcceleration: 5,
-    health: 500,
-    color: 0xff0000,
-  },
+const entityClasses: Record<string, any> = {
+  Human,
+  Bear,
+  // Cheetah, Dragon, etc.
 };
 
-/**
- * Sets up and spawns both the player and opponent characters, then returns them.
- * 
- * @param scene Three.js Scene to which characters should be added
- * @param physicsEngine The physics engine handling their bodies
- */
 export function setupCharacters(
   scene: THREE.Scene,
   physicsEngine: PhysicsEngine
-): { playerCharacter: Character; opponentCharacter: Character } {
-  // 1. Get user selection from DOM
+): { playerCharacter: any; opponentCharacter: any } {
   const charSelectElem = document.getElementById("character-select") as HTMLSelectElement;
   const selectedCharacter = charSelectElem?.value || "Human";
-  const playerProps = entityPropsMap[selectedCharacter] ?? entityPropsMap["Human"];
+  const OpponentSelectElem = document.getElementById("opponent-select") as HTMLSelectElement;
+  const selectedOpponent = OpponentSelectElem?.value || "Bear";
 
-  const oppSelectElem = document.getElementById("opponent-select") as HTMLSelectElement;
-  const selectedOpponent = oppSelectElem?.value || "Bear";
-  const opponentProps = entityPropsMap[selectedOpponent] ?? entityPropsMap["Bear"];
+  const PlayerClass = entityClasses[selectedCharacter] || Human;
+  const OpponentClass = entityClasses[selectedOpponent] || Bear;
 
-  // 2. Create the player's character
-  const playerCharacter = new Character(
+  const playerCharacter = new PlayerClass(
     {
       name: selectedCharacter,
-      color: playerProps.color,
-      weight: playerProps.weight,
-      dimensions: playerProps.dimensions,
-      maxVelocity: playerProps.maxVelocity,
-      maxAcceleration: playerProps.maxAcceleration,
+      color: 0xfad6a5, // or pull from a map
+      weight: 70,
+      dimensions: { width: 0.5, height: 1.8, depth: 0.5 },
+      maxVelocity: 10,
+      maxAcceleration: 3,
       movementType: MovementType.Grounded,
-      health: playerProps.health,
+      health: 100,
     },
     physicsEngine
   );
 
-  // 3. Create the opponent's character
-  const opponentCharacter = new Character(
+  const opponentCharacter = new OpponentClass(
     {
       name: selectedOpponent,
-      color: opponentProps.color,
-      weight: opponentProps.weight,
-      dimensions: opponentProps.dimensions,
-      maxVelocity: opponentProps.maxVelocity,
-      maxAcceleration: opponentProps.maxAcceleration,
+      color: 0x8b4513,
+      weight: 350,
+      dimensions: { width: 1.2, height: 1.0, depth: 2.0 },
+      maxVelocity: 15,
+      maxAcceleration: 5,
       movementType: MovementType.Grounded,
-      health: opponentProps.health,
+      health: 200,
     },
     physicsEngine
   );
 
-  // 4. Position them
+  // Position, add to scene, etc.
   playerCharacter.body.position.set(0, playerCharacter.dimensions.height, 0);
   opponentCharacter.body.position.set(20, opponentCharacter.dimensions.height, 0);
-
-  // 5. Add to scene & physics
   scene.add(playerCharacter.mesh);
   scene.add(opponentCharacter.mesh);
   physicsEngine.world.addBody(playerCharacter.body);

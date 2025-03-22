@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { PhysicsEngine } from '../physics/PhysicsEngine';
 
 export enum MovementType {
   Grounded,
@@ -11,7 +10,6 @@ export interface ICharacterOptions {
   name: string;
   color: number;
   weight: number;
-  // Replace single size with dimensions
   dimensions?: { width: number; height: number; depth: number };
   maxVelocity: number;
   maxAcceleration: number;
@@ -19,7 +17,7 @@ export interface ICharacterOptions {
   health?: number;
 }
 
-export class Character {
+export abstract class Character {
   public name: string;
   public color: number;
   public weight: number;
@@ -27,7 +25,7 @@ export class Character {
   public maxVelocity: number;
   public maxAcceleration: number;
   public movementType: MovementType;
-  public mesh: THREE.Mesh;
+  public mesh: THREE.Group;
   public body: CANNON.Body;
   public health: number;
   public maxHealth: number;
@@ -40,28 +38,17 @@ export class Character {
     this.name = options.name;
     this.color = options.color;
     this.weight = options.weight;
-    // Default to a cube if no dimensions provided.
-    this.dimensions = options.dimensions || { width: options.weight ? 2 : 2, height: 2, depth: 2 };
+    this.dimensions = options.dimensions || { width: 2, height: 2, depth: 2 };
     this.maxVelocity = options.maxVelocity;
     this.maxAcceleration = options.maxAcceleration;
     this.movementType = options.movementType;
-
-    // Setup health.
     this.maxHealth = options.health !== undefined ? options.health : 100;
     this.health = this.maxHealth;
 
-    // Create Three.js geometry using the dimensions.
-    const geometry = new THREE.BoxGeometry(
-      this.dimensions.width,
-      this.dimensions.height,
-      this.dimensions.depth
-    );
-    const material = new THREE.MeshLambertMaterial({ color: this.color });
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
+    // Create a custom mesh from the subclass.
+    this.mesh = this.createMesh();
 
-    // Create Cannon-es shape and body.
+    // Create a simple box collider based on the dimensions.
     const shape = new CANNON.Box(new CANNON.Vec3(
       this.dimensions.width / 2,
       this.dimensions.height / 2,
@@ -69,13 +56,11 @@ export class Character {
     ));
     this.body = new CANNON.Body({ mass: this.weight });
     this.body.addShape(shape);
-    // Lock rotation so the body stays upright.
     this.body.fixedRotation = true;
     this.body.updateMassProperties();
     this.body.material = physicsEngine.characterMaterial;
 
-
-    // Create a health bar container (red background) and inner green bar.
+    // Set up the health bar.
     this.healthBarContainer = document.createElement('div');
     this.healthBarContainer.style.position = 'absolute';
     this.healthBarContainer.style.width = '50px';
@@ -87,30 +72,46 @@ export class Character {
     this.healthBar = document.createElement('div');
     this.healthBar.style.height = '100%';
     this.healthBar.style.backgroundColor = 'green';
-    this.healthBar.style.width = '50px'; // Full width at start.
+    this.healthBar.style.width = '50px';
     this.healthBarContainer.appendChild(this.healthBar);
 
-    // Collision handling: decrease health on impact.
+    // Handle collision events.
     this.body.addEventListener("collide", (event) => {
       const other = event.body;
-      // Ignore collisions with static objects.
       if (other.mass <= 0) return;
-      // Simple approximation of relative velocity.
       const relVel = this.body.velocity.vsub(other.velocity).length();
-      // Damage is proportional to relative velocity and mass ratio.
       const damage = relVel * (other.mass / this.body.mass) * 2;
       this.health -= damage;
       console.log(`${this.name} took ${damage.toFixed(2)} damage. Health: ${this.health.toFixed(2)}`);
     });
   }
 
-  update() {
-    // Sync Three.js mesh with Cannon body.
-    this.mesh.position.copy(this.body.position as unknown as THREE.Vector3);
-    this.mesh.quaternion.copy(this.body.quaternion as unknown as THREE.Quaternion);
-  }
+  // Each subclass implements its own mesh creation.
+  protected abstract createMesh(): THREE.Group;
 
-  // Update the health bar's position and size.
+  update() {
+    // Sync the mesh position with the physics body.
+    this.mesh.position.copy(this.body.position as unknown as THREE.Vector3);
+  
+    // Calculate movement direction based on velocity.
+    const velocity = this.body.velocity;
+    // Only update if the character is moving above a small threshold.
+    if (velocity.length() > 0.1) {
+      // Compute target angle from the velocity vector (x and z components).
+      const targetAngle = Math.atan2(velocity.x, velocity.z);
+  
+      // Get current y rotation.
+      const currentAngle = this.mesh.rotation.y;
+      // Compute smallest angular difference.
+      let deltaAngle = targetAngle - currentAngle;
+      deltaAngle = Math.atan2(Math.sin(deltaAngle), Math.cos(deltaAngle));
+  
+      // Apply interpolation for smooth rotation (adjust factor as needed).
+      const smoothing = 0.1;
+      this.mesh.rotation.y = currentAngle + deltaAngle * smoothing;
+    }
+  }
+  
   updateHealthBar(camera: THREE.Camera) {
     const pos = new THREE.Vector3();
     pos.setFromMatrixPosition(this.mesh.matrixWorld);
@@ -124,7 +125,6 @@ export class Character {
   }
 
   move(direction: THREE.Vector3) {
-    // Apply force instead of a full impulse.
     const force = new CANNON.Vec3(
       direction.x * this.maxAcceleration,
       direction.y * this.maxAcceleration,
