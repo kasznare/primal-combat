@@ -1,9 +1,10 @@
 import { ProceduralScene } from './ProceduralScene.js';
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 
 export class SceneSelector {
-  constructor(private scene: THREE.Scene) {
-    this.createSceneSelector();
+    constructor(private scene: THREE.Scene, private physicsWorld: CANNON.World, private staticMaterial: CANNON.Material) {
+        this.createSceneSelector();
   }
 
   createSceneSelector() {
@@ -15,19 +16,17 @@ export class SceneSelector {
       option.innerText = sceneType;
       select.appendChild(option);
     });
-    // Style the dropdown.
     select.style.position = 'absolute';
     select.style.top = '10px';
     select.style.left = '10px';
     select.style.zIndex = '1000';
     document.body.appendChild(select);
 
-    // When the selection changes, regenerate the scene details.
     select.addEventListener('change', () => {
-      ProceduralScene.generateScene(select.value, this.scene);
+      ProceduralScene.generateScene(this.scene, this.physicsWorld, select.value, 100, this.staticMaterial);
     });
 
     // Optionally, generate an initial scene.
-    ProceduralScene.generateScene(select.value, this.scene);
+    ProceduralScene.generateScene(this.scene, this.physicsWorld, select.value, 100, this.staticMaterial);
   }
 }

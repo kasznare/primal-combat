@@ -12,6 +12,7 @@ export class InputManager {
     });
   }
 
+  
   // Returns a movement vector relative to the camera, using arrow keys or WASD.
   public getMovementVector(camera: THREE.Camera): THREE.Vector3 {
     const forward = new THREE.Vector3();
@@ -48,5 +49,14 @@ export class InputManager {
 
   public resetKey(key: string): void {
     this.keyStates[key] = false;
+  }
+
+  public anyKeyPressed(exclude: string[] = []): boolean {
+    for (const key in this.keyStates) {
+      if (!exclude.includes(key) && this.keyStates[key]) {
+        return true;
+      }
+    }
+    return false;
   }
 }

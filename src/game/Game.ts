@@ -1,14 +1,14 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PhysicsEngine } from '../physics/PhysicsEngine.js';
-import { Character, MovementType } from '../entities/Character.js';
-import { Arena } from '../arenas/Arena.js';
-import { Menu } from '../ui/Menu.js';
-import * as CANNON from 'cannon-es';
-import { InputManager } from './InputManager.js';
-import { AIController } from './AIController.js';
-import { GameStateManager } from './GameStateManager.js';
-import { SceneSelector } from '../scene/SceneSelector.js';
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { PhysicsEngine } from "../physics/PhysicsEngine.js";
+import { Character, MovementType } from "../entities/Character.js";
+import { Arena } from "../arenas/Arena.js";
+import { Menu } from "../ui/Menu.js";
+import * as CANNON from "cannon-es";
+import { InputManager } from "./InputManager.js";
+import { AIController } from "./AIController.js";
+import { GameStateManager } from "./GameStateManager.js";
+import { SceneSelector } from "../scene/SceneSelector.js";
 
 export class Game {
   public renderer: THREE.WebGLRenderer;
@@ -66,21 +66,31 @@ export class Game {
 
     // Setup arena.
     this.arena = new Arena({
-      name: 'Forest',
-      groundColor: 0x556B2F,  
-      skyColor: 0x87CEEB,
+      name: "Forest",
+      groundColor: 0x556b2f,
+      skyColor: 0x87ceeb,
     });
     this.scene.add(this.arena.scene);
 
-    new SceneSelector(this.scene);
+    new SceneSelector(
+      this.scene,
+      this.physicsEngine.world,
+      this.physicsEngine.staticMaterial
+    );
 
-    
-    this.physicsEngine.world.addBody(this.arena.getPhysicsGround(this.physicsEngine));
+    this.physicsEngine.world.addBody(
+      this.arena.getPhysicsGround(this.physicsEngine)
+    );
 
     // Add grid helper.
     const gridSize = 100;
     const gridDivisions = gridSize;
-    const gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x888888, 0x444444);
+    const gridHelper = new THREE.GridHelper(
+      gridSize,
+      gridDivisions,
+      0x888888,
+      0x444444
+    );
     gridHelper.position.y = 0.01;
     this.scene.add(gridHelper);
 
@@ -92,7 +102,7 @@ export class Game {
     this.aiController = new AIController();
     this.gameStateManager = new GameStateManager();
 
-    document.addEventListener('startBattle', () => {
+    document.addEventListener("startBattle", () => {
       this.setupCharacters(this.physicsEngine);
       this.animate();
     });
@@ -101,49 +111,90 @@ export class Game {
   setupCharacters(physicsEngine: PhysicsEngine) {
     // Define properties for different entity types.
     const entityProps: { [key: string]: any } = {
-      'Human':   { dimensions: { width: 0.5, height: 1.8, depth: 0.5 }, weight: 70, maxVelocity: 10, maxAcceleration: 3, health: 100, color: 0xFAD6A5 },
-      'Bear':    { dimensions: { width: 1.2, height: 1.0, depth: 2.0 }, weight: 350, maxVelocity: 15, maxAcceleration: 5, health: 200, color: 0x8B4513 },
-      'Cheetah': { dimensions: { width: 0.4, height: 1.0, depth: 0.8 }, weight: 50, maxVelocity: 30, maxAcceleration: 9, health: 80,  color: 0xC0C0C0 },
-      'Dragon':  { dimensions: { width: 4, height: 8, depth: 6 }, weight: 2000, maxVelocity: 30, maxAcceleration: 5, health: 500, color: 0xFF0000 }
+      Human: {
+        dimensions: { width: 0.5, height: 1.8, depth: 0.5 },
+        weight: 70,
+        maxVelocity: 10,
+        maxAcceleration: 3,
+        health: 100,
+        color: 0xfad6a5,
+      },
+      Bear: {
+        dimensions: { width: 1.2, height: 1.0, depth: 2.0 },
+        weight: 350,
+        maxVelocity: 15,
+        maxAcceleration: 5,
+        health: 200,
+        color: 0x8b4513,
+      },
+      Cheetah: {
+        dimensions: { width: 0.4, height: 1.0, depth: 0.8 },
+        weight: 50,
+        maxVelocity: 30,
+        maxAcceleration: 9,
+        health: 80,
+        color: 0xc0c0c0,
+      },
+      Dragon: {
+        dimensions: { width: 4, height: 8, depth: 6 },
+        weight: 2000,
+        maxVelocity: 30,
+        maxAcceleration: 5,
+        health: 500,
+        color: 0xff0000,
+      },
     };
-    
 
     // Get selected values from dropdowns.
-    const charSelectElem = document.getElementById('character-select') as HTMLSelectElement;
-    const selectedCharacter = charSelectElem ? charSelectElem.value : 'Human';
-    const playerProps = entityProps[selectedCharacter] || entityProps['Human'];
+    const charSelectElem = document.getElementById(
+      "character-select"
+    ) as HTMLSelectElement;
+    const selectedCharacter = charSelectElem ? charSelectElem.value : "Human";
+    const playerProps = entityProps[selectedCharacter] || entityProps["Human"];
 
-    const oppSelectElem = document.getElementById('opponent-select') as HTMLSelectElement;
-    const selectedOpponent = oppSelectElem ? oppSelectElem.value : 'Bear';
-    const opponentProps = entityProps[selectedOpponent] || entityProps['Bear'];
+    const oppSelectElem = document.getElementById(
+      "opponent-select"
+    ) as HTMLSelectElement;
+    const selectedOpponent = oppSelectElem ? oppSelectElem.value : "Bear";
+    const opponentProps = entityProps[selectedOpponent] || entityProps["Bear"];
 
     // Create the player's character.
-    const playerCharacter = new Character({
-      name: selectedCharacter,
-      color: playerProps.color,
-      weight: playerProps.weight,
-      dimensions: playerProps.dimensions,
-      maxVelocity: playerProps.maxVelocity,
-      maxAcceleration: playerProps.maxAcceleration,
-      movementType: MovementType.Grounded,
-      health: playerProps.health,
-    },physicsEngine);
+    const playerCharacter = new Character(
+      {
+        name: selectedCharacter,
+        color: playerProps.color,
+        weight: playerProps.weight,
+        dimensions: playerProps.dimensions,
+        maxVelocity: playerProps.maxVelocity,
+        maxAcceleration: playerProps.maxAcceleration,
+        movementType: MovementType.Grounded,
+        health: playerProps.health,
+      },
+      physicsEngine
+    );
 
     // Create the opponent character.
-    const opponentCharacter = new Character({
-      name: selectedOpponent,
-      color: opponentProps.color,
-      weight: opponentProps.weight,
-      dimensions: opponentProps.dimensions,
-      maxVelocity: opponentProps.maxVelocity,
-      maxAcceleration: opponentProps.maxAcceleration,
-      movementType: MovementType.Grounded,
-      health: opponentProps.health,
-    },physicsEngine);
+    const opponentCharacter = new Character(
+      {
+        name: selectedOpponent,
+        color: opponentProps.color,
+        weight: opponentProps.weight,
+        dimensions: opponentProps.dimensions,
+        maxVelocity: opponentProps.maxVelocity,
+        maxAcceleration: opponentProps.maxAcceleration,
+        movementType: MovementType.Grounded,
+        health: opponentProps.health,
+      },
+      physicsEngine
+    );
 
     // Position characters.
     playerCharacter.body.position.set(0, playerCharacter.dimensions.height, 0);
-    opponentCharacter.body.position.set(20, opponentCharacter.dimensions.height, 0);
+    opponentCharacter.body.position.set(
+      20,
+      opponentCharacter.dimensions.height,
+      0
+    );
 
     // Add to scene.
     this.scene.add(playerCharacter.mesh);
@@ -154,9 +205,47 @@ export class Game {
     this.characters.push(playerCharacter, opponentCharacter);
     this.playerCharacter = playerCharacter;
   }
+  private lastFrameTime: number = 0;
 
-  animate = () => {
+  animate = (timestamp: number) => {
     if (this.gameStateManager.isGameOver()) return;
+    requestAnimationFrame(this.animate);
+    if (!this.lastFrameTime) {
+      this.lastFrameTime = timestamp;
+    }
+    const elapsed = timestamp - this.lastFrameTime;
+    if (elapsed < 1000 / 60) {
+      return;
+    }
+    
+    // Update lastFrameTime.
+    this.lastFrameTime = timestamp;
+    
+  //  console.log('animate')
+  // Check for pause toggle using Escape.
+  if (this.inputManager.isKeyPressed('Escape')) {
+    if (!this.gameStateManager.isPaused()) {
+      this.gameStateManager.setPaused(true);
+      console.log("Game paused");
+    } else {
+      // Optionally, you could let Escape itself resume.
+      // this.gameStateManager.setPaused(false);
+      // console.log("Game resumed");
+    }
+    this.inputManager.resetKey('Escape'); // Reset so it doesn't keep toggling.
+  }
+
+  // If the game is paused, check if any key (except Escape) is pressed to resume.
+  if (this.gameStateManager.isPaused()) {
+    if (this.inputManager.anyKeyPressed(['Escape'])) {
+      this.gameStateManager.setPaused(false);
+      console.log("Game resumed");
+    }
+    // Still update controls and render so the camera remains responsive.
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+    return; // Skip physics, AI, and input processing.
+  }
 
     requestAnimationFrame(this.animate);
     const delta = this.clock.getDelta();
@@ -173,13 +262,13 @@ export class Game {
         this.playerCharacter.body.velocity.x *= 0.98;
         this.playerCharacter.body.velocity.z *= 0.98;
       }
-      if (this.inputManager.isKeyPressed('Space')) {
+      if (this.inputManager.isKeyPressed("Space")) {
         const groundLevel = this.playerCharacter.dimensions.height;
         if (this.playerCharacter.body.position.y <= groundLevel + 0.1) {
           const jumpVelocity = 8;
           this.playerCharacter.body.velocity.y = jumpVelocity;
         }
-        this.inputManager.resetKey('Space');
+        this.inputManager.resetKey("Space");
       }
     }
 
@@ -192,7 +281,7 @@ export class Game {
     this.physicsEngine.update(Math.min(delta, 1 / 60));
 
     // Update characters and health bars.
-    this.characters.forEach(character => {
+    this.characters.forEach((character) => {
       character.update();
       character.updateHealthBar(this.camera);
     });
@@ -204,7 +293,9 @@ export class Game {
       this.gameStateManager.restartGame();
       return;
     }
-    const opponent = this.characters.find(ch => ch !== this.playerCharacter && ch.name === 'Bear');
+    const opponent = this.characters.find(
+      (ch) => ch !== this.playerCharacter && ch.name === "Bear"
+    );
     if (opponent && opponent.health <= 0) {
       this.gameStateManager.setGameOver();
       alert("Game Over: You Win!");
@@ -220,5 +311,5 @@ export class Game {
 
     // Render the scene.
     this.renderer.render(this.scene, this.camera);
-  }
+  };
 }

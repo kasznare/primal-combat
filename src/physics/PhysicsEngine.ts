@@ -4,6 +4,7 @@ export class PhysicsEngine {
   public world: CANNON.World;
   public groundMaterial: CANNON.Material;
   public characterMaterial: CANNON.Material;
+  public staticMaterial: CANNON.Material;
 
   constructor() {
     this.world = new CANNON.World();
@@ -13,6 +14,7 @@ export class PhysicsEngine {
     // Create materials.
     this.groundMaterial = new CANNON.Material('groundMaterial');
     this.characterMaterial = new CANNON.Material('characterMaterial');
+    this.staticMaterial = new CANNON.Material('staticMaterial');
 
     // Create a contact material with low friction.
     const contactMaterial = new CANNON.ContactMaterial(
@@ -23,6 +25,25 @@ export class PhysicsEngine {
         restitution: 0.0,
       }
     );
+    const contactMaterial1 = new CANNON.ContactMaterial(
+      this.staticMaterial,
+      this.characterMaterial,
+      {
+        friction: 0.1, // lower friction for smooth sliding
+        restitution: 0.0,
+      }
+    );
+     const contactMaterial2 = new CANNON.ContactMaterial(
+      this.groundMaterial,
+      this.staticMaterial,
+      {
+        friction: 0.1, // lower friction for smooth sliding
+        restitution: 0.0,
+      }
+    );
+    this.world.addContactMaterial(contactMaterial2);
+    this.world.addContactMaterial(contactMaterial1);
+
     this.world.addContactMaterial(contactMaterial);
   }
   update(delta: number) {
