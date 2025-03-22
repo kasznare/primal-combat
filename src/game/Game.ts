@@ -149,7 +149,7 @@ export class Game {
       this.lastFrameTime = timestamp;
     }
     const elapsed = timestamp - this.lastFrameTime;
-    if (elapsed < 1000 / 60) {
+    if (elapsed < 1000 / 30) {
       return;
     }
 

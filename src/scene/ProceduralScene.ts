@@ -59,7 +59,7 @@ export class ProceduralScene {
   }
 
   static generateForest(scene: THREE.Scene, physicsWorld: CANNON.World, areaSize: number, staticMaterial: CANNON.Material): void {
-    const numTrees = Math.floor(Math.random() * 30) + 20; // 20-50 trees
+    const numTrees = Math.floor(Math.random() * 60) + 20; // 20-50 trees
     for (let i = 0; i < numTrees; i++) {
       const tree = ProceduralScene.createTree();
       tree.position.x = (Math.random() - 0.5) * areaSize;
@@ -86,7 +86,7 @@ export class ProceduralScene {
   static createTree(): THREE.Group {
     const tree = new THREE.Group();
     // Create trunk.
-    const trunkHeight = Math.random() * 4 + 3; // between 3 and 7
+    const trunkHeight = Math.random() * 2 + 1; // between 3 and 7
     const trunkRadiusTop = Math.random() * 0.1 + 0.2;
     const trunkRadiusBottom = trunkRadiusTop * (Math.random() * 0.3 + 1);
     const trunkGeometry = new THREE.CylinderGeometry(trunkRadiusTop, trunkRadiusBottom, trunkHeight, 8);
@@ -98,8 +98,8 @@ export class ProceduralScene {
     tree.add(trunkMesh);
 
     // Create foliage.
-    const foliageHeight = Math.random() * 3 + 2; // 2 to 5
-    const foliageRadius = trunkRadiusBottom * (Math.random() * 5 + 3);
+    const foliageHeight = Math.random() * 6 + 2; // 2 to 5
+    const foliageRadius = trunkRadiusBottom * (Math.random() * 5 + 5);
     const foliageGeometry = new THREE.ConeGeometry(foliageRadius, foliageHeight, 8);
     const foliageMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
     const foliageMesh = new THREE.Mesh(foliageGeometry, foliageMaterial);

@@ -9,11 +9,22 @@ export function setupEnvironment(scene: THREE.Scene) {
 
   // Directional Light
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-  directionalLight.position.set(10, 20, 10);
+  directionalLight.position.set(50, 50, 50);
   directionalLight.castShadow = true;
+  directionalLight.shadow.camera.left = -100;
+  directionalLight.shadow.camera.right = 100;
+  directionalLight.shadow.camera.top = 100;
+  directionalLight.shadow.camera.bottom = -100;
+  directionalLight.shadow.camera.near = 0.5;
+  directionalLight.shadow.camera.far = 500;
+  
+  // Increase the resolution to get less blocky shadows:
   directionalLight.shadow.mapSize.width = 2048;
   directionalLight.shadow.mapSize.height = 2048;
   scene.add(directionalLight);
+
+  // const helper = new THREE.CameraHelper(directionalLight.shadow.camera);
+  // scene.add(helper);
 
   // HDR Environment
   const rgbeLoader = new RGBELoader();
