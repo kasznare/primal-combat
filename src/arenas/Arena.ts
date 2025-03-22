@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { PhysicsEngine } from '../physics/PhysicsEngine';
 
 export interface IArenaOptions {
   name: string;
   groundColor: number;
   skyColor: number;
+  // Optional physics properties for convenience.
+  physicsWorld?: CANNON.World;
+  staticMaterial?: CANNON.Material;
 }
 
 export class Arena {
@@ -19,19 +21,11 @@ export class Arena {
     this.name = options.name;
     this.groundColor = options.groundColor;
     this.skyColor = options.skyColor;
-
     this.scene = scene;
     this.setupEnvironment();
   }
 
   private setupEnvironment() {
-    // Create a sky sphere with inverted normals.
-    // const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
-    // skyGeometry.scale(-1, 1, 1);
-    // const skyMaterial = new THREE.MeshBasicMaterial({ color: this.skyColor });
-    // const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
-    // this.scene.add(skyMesh);
-
     // Create a ground plane.
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
     const groundMaterial = new THREE.MeshLambertMaterial({ color: this.groundColor });
@@ -47,9 +41,7 @@ export class Arena {
     const groundBody = new CANNON.Body({ mass: 0 });
     groundBody.addShape(groundShape);
     groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-    // Assign the ground material.
-    groundBody.material = physicsEngine.groundMaterial; /* reference to your PhysicsEngine.groundMaterial */;
+    groundBody.material = physicsEngine.groundMaterial;
     return groundBody;
   }
-  
 }
