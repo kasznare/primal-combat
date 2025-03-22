@@ -15,6 +15,9 @@ import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { setupEnvironment } from "../scene/Environment.js";
+import { setupPostProcessing } from "../scene/PostProcessing.js";
+import { setupCharacters } from "./CharacterSetup.js";
 
 export class Game {
   public renderer: THREE.WebGLRenderer;
@@ -34,7 +37,7 @@ export class Game {
   private gameStateManager: GameStateManager;
 
   constructor(container: HTMLElement) {
-    // Create renderer.
+    // 1) Initialize Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
@@ -44,7 +47,10 @@ export class Game {
     this.renderer.toneMappingExposure = 1.0;
     container.appendChild(this.renderer.domElement);
 
-    // Create camera.
+    // 2) Create Scene
+    this.scene = new THREE.Scene();
+
+    // 3) Create Camera
     this.camera = new THREE.PerspectiveCamera(
       75,
       window.innerWidth / window.innerHeight,
@@ -53,7 +59,7 @@ export class Game {
     );
     this.camera.position.set(0, 20, 30);
 
-    // Initialize OrbitControls.
+    // 4) Orbit Controls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enablePan = false;
     this.controls.enableDamping = true;
@@ -63,47 +69,12 @@ export class Game {
     this.controls.minPolarAngle = Math.PI / 6;
     this.controls.maxPolarAngle = Math.PI / 2;
 
-    // Create the scene.
-    this.scene = new THREE.Scene();
+    setupEnvironment(this.scene);
 
-    // --- Lighting ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    this.scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(10, 20, 10);
-    directionalLight.castShadow = true;
-    // Adjust shadow map size for better quality.
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    this.scene.add(directionalLight);
+    // 6) Post Processing (moved to scene/PostProcessing.ts)
+    this.composer = setupPostProcessing(this.renderer, this.scene, this.camera);
 
-    const rgbeLoader = new RGBELoader();
-    // rgbeLoader.setDataType(THREE.UnsignedByteType); // For LDR-like behavior.
-    rgbeLoader.load("/golden_gate_hills_8k.hdr", (texture) => {
-      texture.mapping = THREE.EquirectangularReflectionMapping;
-      this.scene.environment = texture;
-      this.scene.background = texture; // Optional: also use it as the background.
-    });
-    // --- Post-Processing Setup ---
-    this.composer = new EffectComposer(this.renderer);
-    // Render pass: renders the scene.
-    const renderPass = new RenderPass(this.scene, this.camera);
-    this.composer.addPass(renderPass);
-    // FXAA pass: smooths out jagged edges.
-    const fxaaPass = new ShaderPass(FXAAShader);
-    fxaaPass.renderToScreen = false; // We'll chain bloom afterwards.
-    this.composer.addPass(fxaaPass);
-    // Bloom pass: adds a glow effect to bright areas.
-    const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.5, // strength
-      0.4, // radius
-      0.85 // threshold
-    );
-    bloomPass.renderToScreen = true;
-    this.composer.addPass(bloomPass);
-
-    // Initialize clock and physics engine.
+    // 7) Physics & Arena
     this.clock = new THREE.Clock();
     this.physicsEngine = new PhysicsEngine();
 
@@ -116,7 +87,6 @@ export class Game {
       },
       this.scene
     );
-    // this.scene.add(this.arena);
 
     new SceneSelector(
       this.scene,
@@ -129,16 +99,16 @@ export class Game {
     );
 
     // Add grid helper.
-    const gridSize = 100;
-    const gridDivisions = gridSize;
-    const gridHelper = new THREE.GridHelper(
-      gridSize,
-      gridDivisions,
-      0x888888,
-      0x444444
-    );
-    gridHelper.position.y = 0.01;
-    this.scene.add(gridHelper);
+    // const gridSize = 100;
+    // const gridDivisions = gridSize;
+    // const gridHelper = new THREE.GridHelper(
+    //   gridSize,
+    //   gridDivisions,
+    //   0x888888,
+    //   0x444444
+    // );
+    // gridHelper.position.y = 0.01;
+    // this.scene.add(gridHelper);
 
     // Display UI menu.
     new Menu();
@@ -149,108 +119,20 @@ export class Game {
     this.gameStateManager = new GameStateManager();
 
     document.addEventListener("startBattle", () => {
-      this.setupCharacters(this.physicsEngine);
+      const { playerCharacter, opponentCharacter } = setupCharacters(
+        this.scene,
+        this.physicsEngine
+      );
+
+      // Store references in your game class
+      this.characters.push(playerCharacter, opponentCharacter);
+      this.playerCharacter = playerCharacter;
+
+      // Start your loop
       this.animate(0);
     });
   }
 
-  setupCharacters(physicsEngine: PhysicsEngine) {
-    // Define properties for different entity types.
-    const entityProps: { [key: string]: any } = {
-      Human: {
-        dimensions: { width: 0.5, height: 1.8, depth: 0.5 },
-        weight: 70,
-        maxVelocity: 10,
-        maxAcceleration: 3,
-        health: 100,
-        color: 0xfad6a5,
-      },
-      Bear: {
-        dimensions: { width: 1.2, height: 1.0, depth: 2.0 },
-        weight: 350,
-        maxVelocity: 15,
-        maxAcceleration: 5,
-        health: 200,
-        color: 0x8b4513,
-      },
-      Cheetah: {
-        dimensions: { width: 0.4, height: 1.0, depth: 0.8 },
-        weight: 50,
-        maxVelocity: 30,
-        maxAcceleration: 9,
-        health: 80,
-        color: 0xc0c0c0,
-      },
-      Dragon: {
-        dimensions: { width: 4, height: 8, depth: 6 },
-        weight: 2000,
-        maxVelocity: 30,
-        maxAcceleration: 5,
-        health: 500,
-        color: 0xff0000,
-      },
-    };
-
-    // Get selected values from dropdowns.
-    const charSelectElem = document.getElementById(
-      "character-select"
-    ) as HTMLSelectElement;
-    const selectedCharacter = charSelectElem ? charSelectElem.value : "Human";
-    const playerProps = entityProps[selectedCharacter] || entityProps["Human"];
-
-    const oppSelectElem = document.getElementById(
-      "opponent-select"
-    ) as HTMLSelectElement;
-    const selectedOpponent = oppSelectElem ? oppSelectElem.value : "Bear";
-    const opponentProps = entityProps[selectedOpponent] || entityProps["Bear"];
-
-    // Create the player's character.
-    const playerCharacter = new Character(
-      {
-        name: selectedCharacter,
-        color: playerProps.color,
-        weight: playerProps.weight,
-        dimensions: playerProps.dimensions,
-        maxVelocity: playerProps.maxVelocity,
-        maxAcceleration: playerProps.maxAcceleration,
-        movementType: MovementType.Grounded,
-        health: playerProps.health,
-      },
-      physicsEngine
-    );
-
-    // Create the opponent character.
-    const opponentCharacter = new Character(
-      {
-        name: selectedOpponent,
-        color: opponentProps.color,
-        weight: opponentProps.weight,
-        dimensions: opponentProps.dimensions,
-        maxVelocity: opponentProps.maxVelocity,
-        maxAcceleration: opponentProps.maxAcceleration,
-        movementType: MovementType.Grounded,
-        health: opponentProps.health,
-      },
-      physicsEngine
-    );
-
-    // Position characters.
-    playerCharacter.body.position.set(0, playerCharacter.dimensions.height, 0);
-    opponentCharacter.body.position.set(
-      20,
-      opponentCharacter.dimensions.height,
-      0
-    );
-
-    // Add to scene.
-    this.scene.add(playerCharacter.mesh);
-    this.scene.add(opponentCharacter.mesh);
-    this.physicsEngine.world.addBody(playerCharacter.body);
-    this.physicsEngine.world.addBody(opponentCharacter.body);
-
-    this.characters.push(playerCharacter, opponentCharacter);
-    this.playerCharacter = playerCharacter;
-  }
   private lastFrameTime: number = 0;
 
   animate = (timestamp: number) => {
@@ -296,12 +178,12 @@ export class Game {
     const delta = this.clock.getDelta();
 
     // Process player input.
-    const moveDirection = this.inputManager.getMovementVector(this.camera);
     if (this.playerCharacter) {
       const groundLevel = this.playerCharacter.dimensions.height;
       // Check if the character is grounded (with a small tolerance).
-      const isGrounded = this.playerCharacter.body.position.y <= groundLevel + 0.1;
-    
+      const isGrounded =
+        this.playerCharacter.body.position.y <= groundLevel + 0.1;
+
       if (isGrounded) {
         // Process directional input only when grounded.
         const moveDirection = this.inputManager.getMovementVector(this.camera);
@@ -316,7 +198,7 @@ export class Game {
           this.playerCharacter.body.velocity.z *= 0.98;
         }
       }
-    
+
       // Handle jumping regardless of horizontal movement.
       if (this.inputManager.isKeyPressed("Space")) {
         if (isGrounded) {
@@ -326,7 +208,6 @@ export class Game {
         this.inputManager.resetKey("Space");
       }
     }
-    
 
     // Update enemy AI.
     if (this.playerCharacter) {
@@ -366,6 +247,8 @@ export class Game {
     this.controls.update();
 
     // Render the scene.
-    this.renderer.render(this.scene, this.camera);
+    // this.renderer.render(this.scene, this.camera);
+    this.composer.render();
+
   };
 }
