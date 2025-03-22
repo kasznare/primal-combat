@@ -9,12 +9,12 @@ import { InputManager } from "./InputManager.js";
 import { AIController } from "./AIController.js";
 import { GameStateManager } from "./GameStateManager.js";
 import { SceneSelector } from "../scene/SceneSelector.js";
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { FXAAShader } from "three/examples/jsm/shaders/FXAAShader.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 export class Game {
   public renderer: THREE.WebGLRenderer;
@@ -79,41 +79,44 @@ export class Game {
 
     const rgbeLoader = new RGBELoader();
     // rgbeLoader.setDataType(THREE.UnsignedByteType); // For LDR-like behavior.
-    rgbeLoader.load('/golden_gate_hills_1k.hdr', (texture) => {
+    rgbeLoader.load("/golden_gate_hills_8k.hdr", (texture) => {
       texture.mapping = THREE.EquirectangularReflectionMapping;
       this.scene.environment = texture;
       this.scene.background = texture; // Optional: also use it as the background.
     });
-  // --- Post-Processing Setup ---
-  this.composer = new EffectComposer(this.renderer);
-  // Render pass: renders the scene.
-  const renderPass = new RenderPass(this.scene, this.camera);
-  this.composer.addPass(renderPass);
-  // FXAA pass: smooths out jagged edges.
-  const fxaaPass = new ShaderPass(FXAAShader);
-  fxaaPass.renderToScreen = false; // We'll chain bloom afterwards.
-  this.composer.addPass(fxaaPass);
-  // Bloom pass: adds a glow effect to bright areas.
-  const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.5, // strength
-    0.4, // radius
-    0.85 // threshold
-  );
-  bloomPass.renderToScreen = true;
-  this.composer.addPass(bloomPass);
+    // --- Post-Processing Setup ---
+    this.composer = new EffectComposer(this.renderer);
+    // Render pass: renders the scene.
+    const renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(renderPass);
+    // FXAA pass: smooths out jagged edges.
+    const fxaaPass = new ShaderPass(FXAAShader);
+    fxaaPass.renderToScreen = false; // We'll chain bloom afterwards.
+    this.composer.addPass(fxaaPass);
+    // Bloom pass: adds a glow effect to bright areas.
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.5, // strength
+      0.4, // radius
+      0.85 // threshold
+    );
+    bloomPass.renderToScreen = true;
+    this.composer.addPass(bloomPass);
 
     // Initialize clock and physics engine.
     this.clock = new THREE.Clock();
     this.physicsEngine = new PhysicsEngine();
 
     // Setup arena.
-    this.arena = new Arena({
-      name: "Forest",
-      groundColor: 0x556b2f,
-      skyColor: 0x87ceeb,
-    });
-    this.scene.add(this.arena.scene);
+    this.arena = new Arena(
+      {
+        name: "Forest",
+        groundColor: 0x556b2f,
+        skyColor: 0x87ceeb,
+      },
+      this.scene
+    );
+    // this.scene.add(this.arena);
 
     new SceneSelector(
       this.scene,
@@ -260,35 +263,34 @@ export class Game {
     if (elapsed < 1000 / 60) {
       return;
     }
-    
+
     // Update lastFrameTime.
     this.lastFrameTime = timestamp;
 
-  //  console.log('animate')
-  // Check for pause toggle using Escape.
-  if (this.inputManager.isKeyPressed('Escape')) {
-    if (!this.gameStateManager.isPaused()) {
-      this.gameStateManager.setPaused(true);
-      console.log("Game paused");
-    } else {
-      // Optionally, you could let Escape itself resume.
-      // this.gameStateManager.setPaused(false);
-      // console.log("Game resumed");
+    // Check for pause toggle using Escape.
+    if (this.inputManager.isKeyPressed("Escape")) {
+      if (!this.gameStateManager.isPaused()) {
+        this.gameStateManager.setPaused(true);
+        console.log("Game paused");
+      } else {
+        // Optionally, you could let Escape itself resume.
+        // this.gameStateManager.setPaused(false);
+        // console.log("Game resumed");
+      }
+      this.inputManager.resetKey("Escape"); // Reset so it doesn't keep toggling.
     }
-    this.inputManager.resetKey('Escape'); // Reset so it doesn't keep toggling.
-  }
 
-  // If the game is paused, check if any key (except Escape) is pressed to resume.
-  if (this.gameStateManager.isPaused()) {
-    if (this.inputManager.anyKeyPressed(['Escape'])) {
-      this.gameStateManager.setPaused(false);
-      console.log("Game resumed");
+    // If the game is paused, check if any key (except Escape) is pressed to resume.
+    if (this.gameStateManager.isPaused()) {
+      if (this.inputManager.anyKeyPressed(["Escape"])) {
+        this.gameStateManager.setPaused(false);
+        console.log("Game resumed");
+      }
+      // Still update controls and render so the camera remains responsive.
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
+      return; // Skip physics, AI, and input processing.
     }
-    // Still update controls and render so the camera remains responsive.
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
-    return; // Skip physics, AI, and input processing.
-  }
 
     // requestAnimationFrame(this.animate);
     const delta = this.clock.getDelta();
@@ -296,24 +298,35 @@ export class Game {
     // Process player input.
     const moveDirection = this.inputManager.getMovementVector(this.camera);
     if (this.playerCharacter) {
-      const moveSpeed = 5;
-      if (moveDirection.length() > 0) {
-        moveDirection.normalize();
-        this.playerCharacter.body.velocity.x = moveDirection.x * moveSpeed;
-        this.playerCharacter.body.velocity.z = moveDirection.z * moveSpeed;
-      } else {
-        this.playerCharacter.body.velocity.x *= 0.98;
-        this.playerCharacter.body.velocity.z *= 0.98;
+      const groundLevel = this.playerCharacter.dimensions.height;
+      // Check if the character is grounded (with a small tolerance).
+      const isGrounded = this.playerCharacter.body.position.y <= groundLevel + 0.1;
+    
+      if (isGrounded) {
+        // Process directional input only when grounded.
+        const moveDirection = this.inputManager.getMovementVector(this.camera);
+        const moveSpeed = 5;
+        if (moveDirection.length() > 0) {
+          moveDirection.normalize();
+          this.playerCharacter.body.velocity.x = moveDirection.x * moveSpeed;
+          this.playerCharacter.body.velocity.z = moveDirection.z * moveSpeed;
+        } else {
+          // Apply damping if no directional input.
+          this.playerCharacter.body.velocity.x *= 0.98;
+          this.playerCharacter.body.velocity.z *= 0.98;
+        }
       }
+    
+      // Handle jumping regardless of horizontal movement.
       if (this.inputManager.isKeyPressed("Space")) {
-        const groundLevel = this.playerCharacter.dimensions.height;
-        if (this.playerCharacter.body.position.y <= groundLevel + 0.1) {
+        if (isGrounded) {
           const jumpVelocity = 8;
           this.playerCharacter.body.velocity.y = jumpVelocity;
         }
         this.inputManager.resetKey("Space");
       }
     }
+    
 
     // Update enemy AI.
     if (this.playerCharacter) {

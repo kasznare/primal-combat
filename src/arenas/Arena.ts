@@ -15,25 +15,25 @@ export class Arena {
   public scene: THREE.Scene;
   public groundMesh: THREE.Mesh;
 
-  constructor(options: IArenaOptions) {
+  constructor(options: IArenaOptions, scene: THREE.Scene) {
     this.name = options.name;
     this.groundColor = options.groundColor;
     this.skyColor = options.skyColor;
 
-    this.scene = new THREE.Scene();
+    this.scene = scene;
     this.setupEnvironment();
   }
 
   private setupEnvironment() {
     // Create a sky sphere with inverted normals.
-    const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
-    skyGeometry.scale(-1, 1, 1);
-    const skyMaterial = new THREE.MeshBasicMaterial({ color: this.skyColor });
-    const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
-    this.scene.add(skyMesh);
+    // const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+    // skyGeometry.scale(-1, 1, 1);
+    // const skyMaterial = new THREE.MeshBasicMaterial({ color: this.skyColor });
+    // const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+    // this.scene.add(skyMesh);
 
     // Create a ground plane.
-    const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
     const groundMaterial = new THREE.MeshLambertMaterial({ color: this.groundColor });
     this.groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
     this.groundMesh.rotation.x = -Math.PI / 2;

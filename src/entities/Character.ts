@@ -58,6 +58,8 @@ export class Character {
     );
     const material = new THREE.MeshLambertMaterial({ color: this.color });
     this.mesh = new THREE.Mesh(geometry, material);
+    this.mesh.castShadow = true;
+    this.mesh.receiveShadow = true;
 
     // Create Cannon-es shape and body.
     const shape = new CANNON.Box(new CANNON.Vec3(

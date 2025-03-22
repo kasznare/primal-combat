@@ -66,6 +66,7 @@ export class ProceduralScene {
       tree.position.z = (Math.random() - 0.5) * areaSize;
       tree.position.y = 0;
       tree.userData.generated = true;
+      tree.castShadow = true;
       scene.add(tree);
       ProceduralScene.addPhysicsForObject(tree, physicsWorld, staticMaterial);
     }
@@ -76,6 +77,7 @@ export class ProceduralScene {
       stone.position.z = (Math.random() - 0.5) * areaSize;
       stone.position.y = 0;
       stone.userData.generated = true;
+      stone.castShadow = true;
       scene.add(stone);
       ProceduralScene.addPhysicsForObject(stone, physicsWorld, staticMaterial);
     }
@@ -92,6 +94,7 @@ export class ProceduralScene {
     const trunkMesh = new THREE.Mesh(trunkGeometry, trunkMaterial);
     trunkMesh.position.y = trunkHeight / 2;
     trunkMesh.userData.generated = true;
+    trunkMesh.castShadow = true;
     tree.add(trunkMesh);
 
     // Create foliage.
@@ -102,6 +105,7 @@ export class ProceduralScene {
     const foliageMesh = new THREE.Mesh(foliageGeometry, foliageMaterial);
     foliageMesh.position.y = trunkHeight + foliageHeight / 2 - 0.5;
     foliageMesh.userData.generated = true;
+    foliageMesh.castShadow = true;
     tree.add(foliageMesh);
 
     return tree;
@@ -127,6 +131,8 @@ export class ProceduralScene {
       const geometry = new THREE.BoxGeometry(width, height, depth);
       const material = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
       const building = new THREE.Mesh(geometry, material);
+      building.castShadow = true;
+      building.receiveShadow = true;
       building.position.x = (Math.random() - 0.5) * areaSize;
       building.position.z = (Math.random() - 0.5) * areaSize;
       building.position.y = height / 2;
