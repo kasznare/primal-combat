@@ -28,11 +28,43 @@ export class Arena {
   private setupEnvironment() {
     // Create a ground plane.
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshLambertMaterial({ color: this.groundColor });
+    const groundMaterial = new THREE.MeshStandardMaterial({
+      color: this.groundColor,
+      roughness: 0.92,
+      metalness: 0.04,
+    });
     this.groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
     this.groundMesh.rotation.x = -Math.PI / 2;
     this.groundMesh.receiveShadow = true;
     this.scene.add(this.groundMesh);
+  }
+
+  protected setGroundMaterial(material: THREE.Material): void {
+    this.groundMesh.material = material;
+  }
+
+  protected addGroundOverlay(
+    radius: number,
+    color: number,
+    opacity: number,
+    yOffset = 0.012
+  ): void {
+    const overlay = new THREE.Mesh(
+      new THREE.CircleGeometry(radius, 48),
+      new THREE.MeshStandardMaterial({
+        color,
+        transparent: true,
+        opacity,
+        roughness: 1,
+        metalness: 0,
+        depthWrite: false,
+      })
+    );
+    overlay.rotation.x = -Math.PI / 2;
+    overlay.position.y = yOffset;
+    overlay.receiveShadow = true;
+    overlay.userData.generated = true;
+    this.scene.add(overlay);
   }
 
   // Returns a static physics ground body corresponding to the visible ground.

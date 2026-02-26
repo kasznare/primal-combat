@@ -47,6 +47,6 @@ export class PhysicsEngine {
     this.world.addContactMaterial(contactMaterial);
   }
   update(delta: number) {
-    this.world.step(delta);
+    this.world.step(1 / 60, delta, 3);
   }
 }

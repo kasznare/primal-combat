@@ -229,7 +229,7 @@ const CHARACTER_CONFIGS: Record<string, CharacterConfig> = {
   },
 };
 
-function resolveSelection(value: string | undefined, fallback: string): string {
+export function resolveCharacterKey(value: string | undefined, fallback: string): string {
   if (!value) {
     return fallback;
   }
@@ -272,8 +272,8 @@ export function setupCharacters(
   selectedPlayer?: string,
   selectedOpponent?: string
 ): { playerCharacter: Character; opponentCharacter: Character } {
-  const playerKey = resolveSelection(selectedPlayer, "Human");
-  const opponentKey = resolveSelection(selectedOpponent, "Bear");
+  const playerKey = resolveCharacterKey(selectedPlayer, "Human");
+  const opponentKey = resolveCharacterKey(selectedOpponent, "Bear");
   const playerConfig = CHARACTER_CONFIGS[playerKey];
   const opponentConfig = CHARACTER_CONFIGS[opponentKey];
 

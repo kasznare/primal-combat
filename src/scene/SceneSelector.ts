@@ -4,11 +4,14 @@ import * as CANNON from "cannon-es";
 import { ForestArena } from "../arenas/ForestArena.js";
 import { CityArena } from "../arenas/CityArena.js";
 import { MoonArena } from "../arenas/MoonArena.js";
+import { ProceduralScene } from "./ProceduralScene.js";
+import type { QualityLevel } from "../types/Quality.js";
 
 export type SceneType = "Forest" | "City" | "Moon";
 
 export class SceneSelector {
   currentArena: ForestArena | CityArena | MoonArena | null = null;
+  private quality: QualityLevel = "medium";
 
   constructor(
     private scene: THREE.Scene,
@@ -16,12 +19,19 @@ export class SceneSelector {
     private staticMaterial: CANNON.Material
   ) {}
 
+  public setQuality(quality: QualityLevel): void {
+    this.quality = quality;
+    ProceduralScene.setQuality(quality);
+  }
+
   public select(sceneType: SceneType): void {
+    ProceduralScene.clearGenerated(this.scene, this.physicsWorld);
+
     while (this.scene.children.length > 0) {
       this.scene.remove(this.scene.children[0]);
     }
 
-    setupEnvironment(this.scene);
+    setupEnvironment(this.scene, this.quality);
 
     if (sceneType === "Forest") {
       this.currentArena = new ForestArena(

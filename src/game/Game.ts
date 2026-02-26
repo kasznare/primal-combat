@@ -10,6 +10,8 @@ import { SceneSelector, SceneType } from "../scene/SceneSelector.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { setupPostProcessing } from "../scene/PostProcessing.js";
 import { setupCharacters } from "./CharacterSetup.js";
+import { getBattleOutcome } from "./BattleRules.js";
+import type { QualityLevel } from "../types/Quality.js";
 
 export class Game {
   public renderer: THREE.WebGLRenderer;
@@ -29,10 +31,13 @@ export class Game {
   private gameStateManager: GameStateManager;
   private sceneSelector: SceneSelector;
   private hasStartedAnimation = false;
+  private currentScene: SceneType = "Forest";
+  private currentQuality: QualityLevel = "medium";
 
   constructor(container: HTMLElement) {
     // 1) Initialize Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(this.getPixelRatioCap(this.currentQuality));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -87,7 +92,8 @@ export class Game {
       this.physicsEngine.world,
       this.physicsEngine.staticMaterial
     );
-    this.sceneSelector.select("Forest");
+    this.sceneSelector.setQuality(this.currentQuality);
+    this.sceneSelector.select(this.currentScene);
 
     const groundShape = new CANNON.Plane();
     const groundBody = new CANNON.Body({ mass: 0 });
@@ -127,7 +133,16 @@ export class Game {
 
   public setScene(sceneType: SceneType): void {
     this.clearCharacters();
+    this.currentScene = sceneType;
     this.sceneSelector.select(sceneType);
+  }
+
+  public setQuality(quality: QualityLevel): void {
+    this.currentQuality = quality;
+    this.renderer.setPixelRatio(this.getPixelRatioCap(quality));
+    this.renderer.shadowMap.enabled = quality !== "low";
+    this.sceneSelector.setQuality(quality);
+    this.sceneSelector.select(this.currentScene);
   }
 
   private clearCharacters(): void {
@@ -146,9 +161,21 @@ export class Game {
   private onWindowResize = (): void => {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(this.getPixelRatioCap(this.currentQuality));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.composer.setSize(window.innerWidth, window.innerHeight);
   };
+
+  private getPixelRatioCap(quality: QualityLevel): number {
+    const device = window.devicePixelRatio || 1;
+    if (quality === "low") {
+      return Math.min(device, 1);
+    }
+    if (quality === "high") {
+      return Math.min(device, 2);
+    }
+    return Math.min(device, 1.5);
+  }
 
   animate = (timestamp: number) => {
     if (this.gameStateManager.isGameOver()) return;
@@ -157,7 +184,7 @@ export class Game {
       this.lastFrameTime = timestamp;
     }
     const elapsed = timestamp - this.lastFrameTime;
-    if (elapsed < 1000 / 30) {
+    if (elapsed < 1000 / 60) {
       return;
     }
 
@@ -238,14 +265,17 @@ export class Game {
       character.updateHealthBar(this.camera);
     });
 
-    // Check win/lose conditions.
-    if (this.playerCharacter && this.playerCharacter.health <= 0) {
+    const outcome = getBattleOutcome(
+      this.playerCharacter?.health,
+      this.opponentCharacter?.health
+    );
+    if (outcome === "player_defeated") {
       this.gameStateManager.setGameOver();
       alert("Game Over: You Lose!");
       this.gameStateManager.restartGame();
       return;
     }
-    if (this.opponentCharacter && this.opponentCharacter.health <= 0) {
+    if (outcome === "opponent_defeated") {
       this.gameStateManager.setGameOver();
       alert("Game Over: You Win!");
       this.gameStateManager.restartGame();
