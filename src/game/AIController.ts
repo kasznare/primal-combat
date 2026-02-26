@@ -10,7 +10,7 @@ export class AIController {
    */
   public update(player: Character, characters: Character[], obstacles: THREE.Object3D[] = []): void {
     characters.forEach((character) => {
-      if (character !== player && character.name === 'Bear') {
+      if (character !== player && character.health > 0) {
         const position = character.mesh.position;
         const targetPos = player.mesh.position;
 
@@ -20,7 +20,7 @@ export class AIController {
         if (desiredDirection.length() === 0) return;
         desiredDirection.normalize();
 
-        const chaseSpeed = 2;
+        const chaseSpeed = Math.max(1.5, Math.min(5, character.maxVelocity * 0.2));
         let bestDirection = desiredDirection.clone();
         let bestScore = Number.NEGATIVE_INFINITY;
 

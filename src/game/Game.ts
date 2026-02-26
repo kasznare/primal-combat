@@ -2,15 +2,12 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { PhysicsEngine } from "../physics/PhysicsEngine.js";
 import { Character } from "../entities/Character.js";
-import { Arena } from "../arenas/Arena.js";
-import { Menu } from "../ui/Menu.js";
 import * as CANNON from "cannon-es";
 import { InputManager } from "./InputManager.js";
 import { AIController } from "./AIController.js";
 import { GameStateManager } from "./GameStateManager.js";
-import { SceneSelector } from "../scene/SceneSelector.js";
+import { SceneSelector, SceneType } from "../scene/SceneSelector.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { setupEnvironment } from "../scene/Environment.js";
 import { setupPostProcessing } from "../scene/PostProcessing.js";
 import { setupCharacters } from "./CharacterSetup.js";
 
@@ -24,12 +21,14 @@ export class Game {
   public physicsEngine: PhysicsEngine;
   public clock: THREE.Clock;
   public characters: Character[] = [];
-  public arena: Arena;
   public playerCharacter: Character | null = null;
+  public opponentCharacter: Character | null = null;
 
   private inputManager: InputManager;
   private aiController: AIController;
   private gameStateManager: GameStateManager;
+  private sceneSelector: SceneSelector;
+  private hasStartedAnimation = false;
 
   constructor(container: HTMLElement) {
     // 1) Initialize Renderer
@@ -37,7 +36,7 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.outputEncoding = THREE.sRGBEncoding;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     container.appendChild(this.renderer.domElement);
@@ -76,8 +75,6 @@ export class Game {
       event.preventDefault()
     );
 
-    setupEnvironment(this.scene);
-
     // 6) Post Processing (moved to scene/PostProcessing.ts)
     this.composer = setupPostProcessing(this.renderer, this.scene, this.camera);
 
@@ -85,62 +82,73 @@ export class Game {
     this.clock = new THREE.Clock();
     this.physicsEngine = new PhysicsEngine();
 
-    // Setup arena.
-    this.arena = new Arena(
-      {
-        name: "Forest",
-        groundColor: 0x556b2f,
-        skyColor: 0x87ceeb,
-      },
-      this.scene
-    );
-
-    new SceneSelector(
+    this.sceneSelector = new SceneSelector(
       this.scene,
       this.physicsEngine.world,
       this.physicsEngine.staticMaterial
     );
+    this.sceneSelector.select("Forest");
 
-    this.physicsEngine.world.addBody(
-      this.arena.getPhysicsGround(this.physicsEngine)
-    );
-
-    // Add grid helper.
-    // const gridSize = 100;
-    // const gridDivisions = gridSize;
-    // const gridHelper = new THREE.GridHelper(
-    //   gridSize,
-    //   gridDivisions,
-    //   0x888888,
-    //   0x444444
-    // );
-    // gridHelper.position.y = 0.01;
-    // this.scene.add(gridHelper);
-
-    // Display UI menu.
-    new Menu();
+    const groundShape = new CANNON.Plane();
+    const groundBody = new CANNON.Body({ mass: 0 });
+    groundBody.addShape(groundShape);
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    groundBody.material = this.physicsEngine.groundMaterial;
+    this.physicsEngine.world.addBody(groundBody);
 
     // Instantiate managers.
     this.inputManager = new InputManager();
     this.aiController = new AIController();
     this.gameStateManager = new GameStateManager();
 
-    document.addEventListener("startBattle", () => {
-      const { playerCharacter, opponentCharacter } = setupCharacters(
-        this.scene,
-        this.physicsEngine
-      );
-
-      // Store references in your game class
-      this.characters.push(playerCharacter, opponentCharacter);
-      this.playerCharacter = playerCharacter;
-
-      // Start your loop
-      this.animate(0);
-    });
+    window.addEventListener("resize", this.onWindowResize);
   }
 
   private lastFrameTime: number = 0;
+
+  public startBattle(playerKey: string, opponentKey: string): void {
+    this.clearCharacters();
+    const { playerCharacter, opponentCharacter } = setupCharacters(
+      this.scene,
+      this.physicsEngine,
+      playerKey,
+      opponentKey
+    );
+    this.characters = [playerCharacter, opponentCharacter];
+    this.playerCharacter = playerCharacter;
+    this.opponentCharacter = opponentCharacter;
+    this.lastFrameTime = 0;
+
+    if (!this.hasStartedAnimation) {
+      this.hasStartedAnimation = true;
+      this.animate(0);
+    }
+  }
+
+  public setScene(sceneType: SceneType): void {
+    this.clearCharacters();
+    this.sceneSelector.select(sceneType);
+  }
+
+  private clearCharacters(): void {
+    this.characters.forEach((character) => {
+      this.scene.remove(character.mesh);
+      this.physicsEngine.world.removeBody(character.body);
+      if (character.healthBarContainer.parentElement) {
+        character.healthBarContainer.parentElement.removeChild(character.healthBarContainer);
+      }
+    });
+    this.characters = [];
+    this.playerCharacter = null;
+    this.opponentCharacter = null;
+  }
+
+  private onWindowResize = (): void => {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.composer.setSize(window.innerWidth, window.innerHeight);
+  };
 
   animate = (timestamp: number) => {
     if (this.gameStateManager.isGameOver()) return;
@@ -237,10 +245,7 @@ export class Game {
       this.gameStateManager.restartGame();
       return;
     }
-    const opponent = this.characters.find(
-      (ch) => ch !== this.playerCharacter && ch.name === "Bear"
-    );
-    if (opponent && opponent.health <= 0) {
+    if (this.opponentCharacter && this.opponentCharacter.health <= 0) {
       this.gameStateManager.setGameOver();
       alert("Game Over: You Win!");
       this.gameStateManager.restartGame();

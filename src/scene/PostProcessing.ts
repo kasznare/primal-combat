@@ -14,7 +14,7 @@ export function setupPostProcessing(
   // For best results, ensure renderer has WebGL2 support.
   const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
     format: THREE.RGBAFormat,
-    encoding: THREE.sRGBEncoding,
+    colorSpace: THREE.SRGBColorSpace,
   });
 
   // If WebGL2 is available, enable multisampling:
