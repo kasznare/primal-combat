@@ -6,15 +6,47 @@ import type { QualityLevel } from "./types/Quality";
 
 const SCENES: SceneType[] = ["Forest", "City", "Moon"];
 const QUALITY_LEVELS: QualityLevel[] = ["low", "medium", "high"];
+const STORAGE_KEY = "primal-combat-settings-v1";
+
+type StoredSettings = {
+  scene: SceneType;
+  quality: QualityLevel;
+  autoQuality: boolean;
+};
+
+function loadStoredSettings(): StoredSettings {
+  const defaults: StoredSettings = {
+    scene: "Forest",
+    quality: "medium",
+    autoQuality: true,
+  };
+
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return defaults;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredSettings>;
+    return {
+      scene: parsed.scene ?? defaults.scene,
+      quality: parsed.quality ?? defaults.quality,
+      autoQuality: parsed.autoQuality ?? defaults.autoQuality,
+    };
+  } catch {
+    return defaults;
+  }
+}
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Game | null>(null);
+  const initialSettings = loadStoredSettings();
 
   const [player, setPlayer] = useState("Human");
   const [opponent, setOpponent] = useState("Bear");
-  const [scene, setScene] = useState<SceneType>("Forest");
-  const [quality, setQuality] = useState<QualityLevel>("medium");
+  const [scene, setScene] = useState<SceneType>(initialSettings.scene);
+  const [quality, setQuality] = useState<QualityLevel>(initialSettings.quality);
+  const [autoQuality, setAutoQuality] = useState(initialSettings.autoQuality);
   const [showPerf, setShowPerf] = useState(false);
 
   useEffect(() => {
@@ -22,11 +54,23 @@ export default function App() {
       return;
     }
 
-    gameRef.current = new Game(containerRef.current);
+    gameRef.current = new Game(containerRef.current, {
+      onQualityChanged: (nextQuality) => setQuality(nextQuality),
+    });
     gameRef.current.setQuality(quality);
+    gameRef.current.setAutoQuality(autoQuality);
     gameRef.current.setScene(scene);
     gameRef.current.setDebug(showPerf);
-  }, [quality, scene, showPerf]);
+  }, [autoQuality, quality, scene, showPerf]);
+
+  useEffect(() => {
+    const payload: StoredSettings = {
+      scene,
+      quality,
+      autoQuality,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }, [autoQuality, quality, scene]);
 
   const onStartBattle = () => {
     if (!gameRef.current) {
@@ -58,6 +102,15 @@ export default function App() {
       return;
     }
     gameRef.current.setDebug(nextValue);
+  };
+
+  const onAutoQualityToggle = () => {
+    const nextValue = !autoQuality;
+    setAutoQuality(nextValue);
+    if (!gameRef.current) {
+      return;
+    }
+    gameRef.current.setAutoQuality(nextValue);
   };
 
   return (
@@ -114,6 +167,9 @@ export default function App() {
             </option>
           ))}
         </select>
+        <button type="button" className="secondary-btn" onClick={onAutoQualityToggle}>
+          Auto Quality: {autoQuality ? "On" : "Off"}
+        </button>
 
         <button type="button" onClick={onStartBattle}>
           Start Battle

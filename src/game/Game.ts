@@ -13,6 +13,10 @@ import { setupCharacters } from "./CharacterSetup.js";
 import { getBattleOutcome } from "./BattleRules.js";
 import type { QualityLevel } from "../types/Quality.js";
 
+type GameOptions = {
+  onQualityChanged?: (quality: QualityLevel) => void;
+};
+
 export class Game {
   public renderer: THREE.WebGLRenderer;
   public scene: THREE.Scene;
@@ -33,6 +37,8 @@ export class Game {
   private hasStartedAnimation = false;
   private currentScene: SceneType = "Forest";
   private currentQuality: QualityLevel = "medium";
+  private autoQualityEnabled = true;
+  private options?: GameOptions;
   private debugEnabled = false;
   private debugOverlay: HTMLDivElement;
   private debugAccumulatorMs = 0;
@@ -42,8 +48,12 @@ export class Game {
   private opponentMarker: THREE.Mesh | null = null;
   private playerRimLight: THREE.PointLight | null = null;
   private opponentRimLight: THREE.PointLight | null = null;
+  private perfWindowMs = 0;
+  private perfWindowFrames = 0;
+  private perfWindowStartTs = 0;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, options?: GameOptions) {
+    this.options = options;
     // 1) Initialize Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(this.getPixelRatioCap(this.currentQuality));
@@ -158,11 +168,16 @@ export class Game {
     this.renderer.shadowMap.enabled = quality !== "low";
     this.sceneSelector.setQuality(quality);
     this.sceneSelector.select(this.currentScene);
+    this.options?.onQualityChanged?.(quality);
   }
 
   public setDebug(enabled: boolean): void {
     this.debugEnabled = enabled;
     this.debugOverlay.style.display = enabled ? "block" : "none";
+  }
+
+  public setAutoQuality(enabled: boolean): void {
+    this.autoQualityEnabled = enabled;
   }
 
   private clearCharacters(): void {
@@ -212,6 +227,7 @@ export class Game {
     // Update lastFrameTime.
     this.lastFrameTime = timestamp;
     this.updateDebugOverlay(elapsed, timestamp);
+    this.updateAdaptiveQuality(elapsed, timestamp);
 
     // Check for pause toggle using Escape.
     if (this.inputManager.isKeyPressed("Escape")) {
@@ -337,12 +353,43 @@ export class Game {
     this.debugOverlay.textContent =
       `FPS ${fps.toFixed(1)}\n` +
       `Frame ${avgFrameMs.toFixed(2)} ms\n` +
+      `Quality ${this.currentQuality}\n` +
       `Draws ${this.renderer.info.render.calls}\n` +
       `Tris ${this.renderer.info.render.triangles}`;
 
     this.lastDebugSampleTs = timestamp;
     this.debugAccumulatorMs = 0;
     this.debugFrameCount = 0;
+  }
+
+  private updateAdaptiveQuality(frameMs: number, timestamp: number): void {
+    if (!this.autoQualityEnabled) {
+      return;
+    }
+
+    if (!this.perfWindowStartTs) {
+      this.perfWindowStartTs = timestamp;
+    }
+
+    this.perfWindowMs += frameMs;
+    this.perfWindowFrames += 1;
+
+    if (timestamp - this.perfWindowStartTs < 2600) {
+      return;
+    }
+
+    const avgFrameMs = this.perfWindowMs / Math.max(1, this.perfWindowFrames);
+    const fps = 1000 / Math.max(1, avgFrameMs);
+
+    if (this.currentQuality === "high" && fps < 50) {
+      this.setQuality("medium");
+    } else if (this.currentQuality === "medium" && fps < 42) {
+      this.setQuality("low");
+    }
+
+    this.perfWindowStartTs = timestamp;
+    this.perfWindowMs = 0;
+    this.perfWindowFrames = 0;
   }
 
   private setupCombatReadability(): void {
