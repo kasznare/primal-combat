@@ -33,6 +33,15 @@ export class Game {
   private hasStartedAnimation = false;
   private currentScene: SceneType = "Forest";
   private currentQuality: QualityLevel = "medium";
+  private debugEnabled = false;
+  private debugOverlay: HTMLDivElement;
+  private debugAccumulatorMs = 0;
+  private debugFrameCount = 0;
+  private lastDebugSampleTs = 0;
+  private playerMarker: THREE.Mesh | null = null;
+  private opponentMarker: THREE.Mesh | null = null;
+  private playerRimLight: THREE.PointLight | null = null;
+  private opponentRimLight: THREE.PointLight | null = null;
 
   constructor(container: HTMLElement) {
     // 1) Initialize Renderer
@@ -45,6 +54,10 @@ export class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     container.appendChild(this.renderer.domElement);
+    this.debugOverlay = document.createElement("div");
+    this.debugOverlay.className = "perf-overlay";
+    this.debugOverlay.style.display = "none";
+    container.appendChild(this.debugOverlay);
 
     // 2) Create Scene
     this.scene = new THREE.Scene();
@@ -124,6 +137,7 @@ export class Game {
     this.playerCharacter = playerCharacter;
     this.opponentCharacter = opponentCharacter;
     this.lastFrameTime = 0;
+    this.setupCombatReadability();
 
     if (!this.hasStartedAnimation) {
       this.hasStartedAnimation = true;
@@ -138,6 +152,7 @@ export class Game {
   }
 
   public setQuality(quality: QualityLevel): void {
+    this.clearCharacters();
     this.currentQuality = quality;
     this.renderer.setPixelRatio(this.getPixelRatioCap(quality));
     this.renderer.shadowMap.enabled = quality !== "low";
@@ -145,7 +160,13 @@ export class Game {
     this.sceneSelector.select(this.currentScene);
   }
 
+  public setDebug(enabled: boolean): void {
+    this.debugEnabled = enabled;
+    this.debugOverlay.style.display = enabled ? "block" : "none";
+  }
+
   private clearCharacters(): void {
+    this.clearCombatReadability();
     this.characters.forEach((character) => {
       this.scene.remove(character.mesh);
       this.physicsEngine.world.removeBody(character.body);
@@ -190,6 +211,7 @@ export class Game {
 
     // Update lastFrameTime.
     this.lastFrameTime = timestamp;
+    this.updateDebugOverlay(elapsed, timestamp);
 
     // Check for pause toggle using Escape.
     if (this.inputManager.isKeyPressed("Escape")) {
@@ -264,21 +286,18 @@ export class Game {
       character.update();
       character.updateHealthBar(this.camera);
     });
+    this.updateCombatReadability();
 
     const outcome = getBattleOutcome(
       this.playerCharacter?.health,
       this.opponentCharacter?.health
     );
     if (outcome === "player_defeated") {
-      this.gameStateManager.setGameOver();
-      alert("Game Over: You Lose!");
-      this.gameStateManager.restartGame();
+      this.handleBattleEnd("Game Over: You Lose!");
       return;
     }
     if (outcome === "opponent_defeated") {
-      this.gameStateManager.setGameOver();
-      alert("Game Over: You Win!");
-      this.gameStateManager.restartGame();
+      this.handleBattleEnd("Game Over: You Win!");
       return;
     }
 
@@ -292,4 +311,132 @@ export class Game {
     // this.renderer.render(this.scene, this.camera);
     this.composer.render();
   };
+
+  private handleBattleEnd(message: string): void {
+    this.gameStateManager.setGameOver();
+    this.gameStateManager.setPaused(true);
+    alert(message);
+    this.clearCharacters();
+    this.gameStateManager.reset();
+  }
+
+  private updateDebugOverlay(frameMs: number, timestamp: number): void {
+    if (!this.debugEnabled) {
+      return;
+    }
+
+    this.debugAccumulatorMs += frameMs;
+    this.debugFrameCount += 1;
+
+    if (timestamp - this.lastDebugSampleTs < 350) {
+      return;
+    }
+
+    const avgFrameMs = this.debugAccumulatorMs / Math.max(1, this.debugFrameCount);
+    const fps = 1000 / Math.max(1, avgFrameMs);
+    this.debugOverlay.textContent =
+      `FPS ${fps.toFixed(1)}\n` +
+      `Frame ${avgFrameMs.toFixed(2)} ms\n` +
+      `Draws ${this.renderer.info.render.calls}\n` +
+      `Tris ${this.renderer.info.render.triangles}`;
+
+    this.lastDebugSampleTs = timestamp;
+    this.debugAccumulatorMs = 0;
+    this.debugFrameCount = 0;
+  }
+
+  private setupCombatReadability(): void {
+    this.clearCombatReadability();
+    if (!this.playerCharacter || !this.opponentCharacter) {
+      return;
+    }
+
+    this.playerMarker = this.createGroundMarker(0x59afff);
+    this.opponentMarker = this.createGroundMarker(0xff6f5d);
+    this.scene.add(this.playerMarker);
+    this.scene.add(this.opponentMarker);
+
+    this.playerRimLight = this.createRimLight(0x75bcff);
+    this.opponentRimLight = this.createRimLight(0xff7f6b);
+    this.scene.add(this.playerRimLight);
+    this.scene.add(this.opponentRimLight);
+  }
+
+  private clearCombatReadability(): void {
+    [this.playerMarker, this.opponentMarker, this.playerRimLight, this.opponentRimLight].forEach(
+      (object) => {
+        if (object) {
+          this.scene.remove(object);
+        }
+      }
+    );
+    this.playerMarker = null;
+    this.opponentMarker = null;
+    this.playerRimLight = null;
+    this.opponentRimLight = null;
+  }
+
+  private updateCombatReadability(): void {
+    if (!this.playerCharacter || !this.opponentCharacter) {
+      return;
+    }
+
+    if (this.playerMarker) {
+      this.playerMarker.position.set(
+        this.playerCharacter.mesh.position.x,
+        0.05,
+        this.playerCharacter.mesh.position.z
+      );
+      this.playerMarker.scale.setScalar(this.playerCharacter.isHitFlashing() ? 1.22 : 1);
+      (this.playerMarker.material as THREE.MeshBasicMaterial).opacity = this.playerCharacter.isHitFlashing()
+        ? 0.96
+        : 0.72;
+    }
+    if (this.opponentMarker) {
+      this.opponentMarker.position.set(
+        this.opponentCharacter.mesh.position.x,
+        0.05,
+        this.opponentCharacter.mesh.position.z
+      );
+      this.opponentMarker.scale.setScalar(this.opponentCharacter.isHitFlashing() ? 1.22 : 1);
+      (this.opponentMarker.material as THREE.MeshBasicMaterial).opacity = this.opponentCharacter.isHitFlashing()
+        ? 0.96
+        : 0.72;
+    }
+    if (this.playerRimLight) {
+      this.playerRimLight.position.set(
+        this.playerCharacter.mesh.position.x,
+        this.playerCharacter.dimensions.height + 0.6,
+        this.playerCharacter.mesh.position.z
+      );
+      this.playerRimLight.intensity = this.playerCharacter.isHitFlashing() ? 1.2 : 0.65;
+    }
+    if (this.opponentRimLight) {
+      this.opponentRimLight.position.set(
+        this.opponentCharacter.mesh.position.x,
+        this.opponentCharacter.dimensions.height + 0.6,
+        this.opponentCharacter.mesh.position.z
+      );
+      this.opponentRimLight.intensity = this.opponentCharacter.isHitFlashing() ? 1.2 : 0.65;
+    }
+  }
+
+  private createGroundMarker(color: number): THREE.Mesh {
+    return new THREE.Mesh(
+      new THREE.RingGeometry(0.9, 1.22, 48),
+      new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.72,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      })
+    );
+  }
+
+  private createRimLight(color: number): THREE.PointLight {
+    const light = new THREE.PointLight(color, 0.65, 8, 2.1);
+    light.castShadow = false;
+    return light;
+  }
 }

@@ -12,9 +12,7 @@ export class GameStateManager {
   }
 
   public restartGame(): void {
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
+    this.reset();
   }
 
   public isPaused(): boolean {
@@ -23,5 +21,10 @@ export class GameStateManager {
 
   public setPaused(paused: boolean): void {
     this.paused = paused;
+  }
+
+  public reset(): void {
+    this.gameOver = false;
+    this.paused = false;
   }
 }

@@ -31,7 +31,7 @@ export class SceneSelector {
       this.scene.remove(this.scene.children[0]);
     }
 
-    setupEnvironment(this.scene, this.quality);
+    setupEnvironment(this.scene, this.quality, sceneType);
 
     if (sceneType === "Forest") {
       this.currentArena = new ForestArena(

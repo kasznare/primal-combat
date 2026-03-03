@@ -15,6 +15,7 @@ export default function App() {
   const [opponent, setOpponent] = useState("Bear");
   const [scene, setScene] = useState<SceneType>("Forest");
   const [quality, setQuality] = useState<QualityLevel>("medium");
+  const [showPerf, setShowPerf] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) {
@@ -24,7 +25,8 @@ export default function App() {
     gameRef.current = new Game(containerRef.current);
     gameRef.current.setQuality(quality);
     gameRef.current.setScene(scene);
-  }, [quality, scene]);
+    gameRef.current.setDebug(showPerf);
+  }, [quality, scene, showPerf]);
 
   const onStartBattle = () => {
     if (!gameRef.current) {
@@ -47,6 +49,15 @@ export default function App() {
       return;
     }
     gameRef.current.setQuality(nextQuality);
+  };
+
+  const onPerfToggle = () => {
+    const nextValue = !showPerf;
+    setShowPerf(nextValue);
+    if (!gameRef.current) {
+      return;
+    }
+    gameRef.current.setDebug(nextValue);
   };
 
   return (
@@ -106,6 +117,9 @@ export default function App() {
 
         <button type="button" onClick={onStartBattle}>
           Start Battle
+        </button>
+        <button type="button" className="secondary-btn" onClick={onPerfToggle}>
+          {showPerf ? "Hide Performance" : "Show Performance"}
         </button>
 
         <div className="control-grid">

@@ -29,6 +29,9 @@ export abstract class Character {
   public body: CANNON.Body;
   public health: number;
   public maxHealth: number;
+  private flashableMaterials: THREE.Material[] = [];
+  private hitFlashEndTs = 0;
+  private hitFlashActive = false;
 
   // Health bar elements.
   public healthBarContainer: HTMLDivElement;
@@ -47,6 +50,7 @@ export abstract class Character {
 
     // Create a custom mesh from the subclass.
     this.mesh = this.createMesh();
+    this.collectFlashableMaterials();
 
     // Create a simple box collider based on the dimensions.
     const shape = new CANNON.Box(new CANNON.Vec3(
@@ -82,6 +86,10 @@ export abstract class Character {
       const relVel = this.body.velocity.vsub(other.velocity).length();
       const damage = relVel * (other.mass / this.body.mass) * 2;
       this.health -= damage;
+      this.health = Math.max(0, this.health);
+      if (damage > 0.5) {
+        this.hitFlashEndTs = performance.now() + 130;
+      }
       console.log(`${this.name} took ${damage.toFixed(2)} damage. Health: ${this.health.toFixed(2)}`);
     });
   }
@@ -110,6 +118,8 @@ export abstract class Character {
       const smoothing = 0.1;
       this.mesh.rotation.y = currentAngle + deltaAngle * smoothing;
     }
+
+    this.updateHitFlash();
   }
   
   updateHealthBar(camera: THREE.Camera) {
@@ -131,5 +141,46 @@ export abstract class Character {
       direction.z * this.maxAcceleration
     );
     this.body.applyForce(force, this.body.position);
+  }
+
+  public isHitFlashing(): boolean {
+    return this.hitFlashActive;
+  }
+
+  private collectFlashableMaterials(): void {
+    this.mesh.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
+      if (!material) {
+        return;
+      }
+      if (Array.isArray(material)) {
+        material.forEach((entry) => this.flashableMaterials.push(entry));
+        return;
+      }
+      this.flashableMaterials.push(material);
+    });
+  }
+
+  private updateHitFlash(): void {
+    const shouldFlash = performance.now() < this.hitFlashEndTs;
+    if (shouldFlash === this.hitFlashActive) {
+      return;
+    }
+
+    this.hitFlashActive = shouldFlash;
+    this.flashableMaterials.forEach((material) => {
+      const withEmissive = material as THREE.MeshStandardMaterial | THREE.MeshLambertMaterial;
+      if (!("emissive" in withEmissive)) {
+        return;
+      }
+      if (shouldFlash) {
+        withEmissive.emissive.setHex(0xff4422);
+        withEmissive.emissiveIntensity = 0.9;
+      } else {
+        withEmissive.emissive.setHex(0x000000);
+        withEmissive.emissiveIntensity = 0;
+      }
+    });
   }
 }

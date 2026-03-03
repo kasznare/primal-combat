@@ -140,12 +140,42 @@ body {
   filter: brightness(1.03);
 }
 
+.ui-panel .secondary-btn {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  background: rgba(240, 179, 90, 0.14);
+  color: var(--ink);
+  border-color: rgba(255, 221, 165, 0.45);
+}
+
+.ui-panel .secondary-btn:hover {
+  filter: none;
+  background: rgba(240, 179, 90, 0.24);
+}
+
 .control-grid {
   margin-top: 0.2rem;
   display: grid;
   gap: 0.22rem;
   font-size: 0.76rem;
   color: rgba(243, 236, 223, 0.82);
+}
+
+.perf-overlay {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.8rem;
+  z-index: 3;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(5, 8, 13, 0.72);
+  color: #e8eef6;
+  font: 600 12px/1.35 "IBM Plex Mono", "Consolas", monospace;
+  white-space: pre;
+  pointer-events: none;
 }
 
 @keyframes panel-enter {
