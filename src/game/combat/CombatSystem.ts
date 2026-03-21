@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import type { Character } from "../../entities/Character";
 import { isTargetWithinFieldOfView } from "../movement/MovementDynamics";
-import type { CharacterConfig } from "../roster/types";
+import type { AttackProfile, CharacterConfig } from "../roster/types";
+import { hitboxIntersectsTarget } from "./HitboxMath";
 import type { CombatEvent, FighterCombatState, FighterPhase } from "./types";
 
 function createDefaultState(): FighterCombatState {
@@ -9,12 +10,15 @@ function createDefaultState(): FighterCombatState {
     phase: "idle",
     phaseEndsAt: null,
     attackTarget: null,
+    attackId: null,
     attackResolved: false,
     blockHeld: false,
     invulnerableUntil: Number.NEGATIVE_INFINITY,
     dodgeCooldownUntil: Number.NEGATIVE_INFINITY,
     lastAttackAt: Number.NEGATIVE_INFINITY,
     lastHitAt: Number.NEGATIVE_INFINITY,
+    moveCooldownUntil: {},
+    bleedingUntil: Number.NEGATIVE_INFINITY,
   };
 }
 
@@ -33,6 +37,10 @@ export class CombatSystem {
 
   public getPhase(character: Character): FighterPhase {
     return this.ensureState(character).phase;
+  }
+
+  public isBleeding(character: Character, timestamp: number): boolean {
+    return timestamp < this.ensureState(character).bleedingUntil;
   }
 
   public canMove(character: Character): boolean {
@@ -141,30 +149,34 @@ export class CombatSystem {
     attacker: Character,
     target: Character,
     config: CharacterConfig,
-    timestamp: number
+    timestamp: number,
+    moveId = config.attack.id
   ): CombatEvent | null {
     const state = this.ensureState(attacker);
-    if (!this.canStartAttack(attacker, config, timestamp)) {
+    const attack = this.getAttack(config, moveId);
+    if (!attack || !this.canStartAttack(attacker, attack, timestamp)) {
       return null;
     }
 
     const distance = attacker.mesh.position.distanceTo(target.mesh.position);
-    const startFov = Math.max(config.attack.arcDegrees + 12, config.movement.fieldOfViewDegrees ?? 0);
-    if (distance > config.attack.range * 1.15 || !isTargetWithinFieldOfView(attacker, target, startFov)) {
+    const startFov = Math.max(attack.arcDegrees + 12, config.movement.fieldOfViewDegrees ?? 0);
+    if (distance > attack.range * 1.15 || !isTargetWithinFieldOfView(attacker, target, startFov)) {
       return null;
     }
 
     state.phase = "attackStartup";
-    state.phaseEndsAt = timestamp + config.attack.startupMs;
+    state.phaseEndsAt = timestamp + attack.startupMs;
     state.attackTarget = target;
+    state.attackId = attack.id;
     state.attackResolved = false;
     state.blockHeld = false;
     state.lastAttackAt = timestamp;
+    state.moveCooldownUntil[attack.id] = timestamp + attack.cooldownMs;
 
     const toTarget = new THREE.Vector3().subVectors(target.mesh.position, attacker.mesh.position);
     attacker.mesh.rotation.y = Math.atan2(toTarget.x, toTarget.z);
 
-    return { type: "attack_start", attacker, target, phase: "attackStartup" };
+    return { type: "attack_start", attacker, target, phase: "attackStartup", moveId: attack.id, moveLabel: attack.label };
   }
 
   public updateFighter(
@@ -187,9 +199,10 @@ export class CombatSystem {
       return events;
     }
 
+    const activeAttack = this.getActiveAttack(actorConfig, state);
     if (state.phase === "attackStartup" && state.phaseEndsAt !== null && timestamp >= state.phaseEndsAt) {
       state.phase = "attackActive";
-      state.phaseEndsAt = timestamp + actorConfig.attack.activeMs;
+      state.phaseEndsAt = timestamp + activeAttack.activeMs;
       events.push({ type: "state_change", target: actor, phase: "attackActive" });
     }
 
@@ -200,7 +213,7 @@ export class CombatSystem {
 
     if (state.phase === "attackActive" && state.phaseEndsAt !== null && timestamp >= state.phaseEndsAt) {
       state.phase = "attackRecovery";
-      state.phaseEndsAt = timestamp + actorConfig.attack.recoveryMs;
+      state.phaseEndsAt = timestamp + activeAttack.recoveryMs;
       events.push({ type: "state_change", target: actor, phase: "attackRecovery" });
     }
 
@@ -228,17 +241,19 @@ export class CombatSystem {
   public getCooldownProgress(
     character: Character,
     config: CharacterConfig,
-    timestamp: number
+    timestamp: number,
+    moveId = config.attack.id
   ): number {
     const state = this.ensureState(character);
-    const elapsed = timestamp - state.lastAttackAt;
-    if (!Number.isFinite(elapsed)) {
+    const attack = this.getAttack(config, moveId) ?? config.attack;
+    const cooldownUntil = state.moveCooldownUntil[attack.id] ?? Number.NEGATIVE_INFINITY;
+    if (!Number.isFinite(cooldownUntil) || cooldownUntil <= timestamp) {
       return 1;
     }
-    return THREE.MathUtils.clamp(elapsed / config.attack.cooldownMs, 0, 1);
+    return THREE.MathUtils.clamp(1 - (cooldownUntil - timestamp) / attack.cooldownMs, 0, 1);
   }
 
-  private canStartAttack(attacker: Character, config: CharacterConfig, timestamp: number): boolean {
+  private canStartAttack(attacker: Character, attack: AttackProfile, timestamp: number): boolean {
     const state = this.ensureState(attacker);
     if (attacker.health <= 0) {
       state.phase = "defeated";
@@ -247,7 +262,7 @@ export class CombatSystem {
     if (["attackStartup", "attackActive", "attackRecovery", "stunned", "dodging", "defeated"].includes(state.phase)) {
       return false;
     }
-    return timestamp - state.lastAttackAt >= config.attack.cooldownMs;
+    return timestamp >= (state.moveCooldownUntil[attack.id] ?? Number.NEGATIVE_INFINITY);
   }
 
   private resolveAttack(
@@ -258,77 +273,82 @@ export class CombatSystem {
     timestamp: number,
     knockbackScale: number
   ): CombatEvent {
-    const state = this.ensureState(target);
+    const targetState = this.ensureState(target);
+    const attackerState = this.ensureState(attacker);
+    const activeAttack = this.getActiveAttack(attackerConfig, attackerState);
     if (target.health <= 0) {
-      state.phase = "defeated";
+      targetState.phase = "defeated";
       return { type: "attack_whiff", attacker, target };
     }
 
     const toTarget = new THREE.Vector3().subVectors(target.mesh.position, attacker.mesh.position);
     toTarget.y = 0;
-    const distance = toTarget.length();
-    if (distance > attackerConfig.attack.range || distance === 0) {
+    const distance = toTarget.length() || 0.001;
+    if (!hitboxIntersectsTarget(attacker, activeAttack, target, targetConfig)) {
       return { type: "attack_whiff", attacker, target };
     }
-
     toTarget.normalize();
-    const forward = new THREE.Vector3(Math.sin(attacker.mesh.rotation.y), 0, Math.cos(attacker.mesh.rotation.y));
-    const angle = THREE.MathUtils.radToDeg(forward.angleTo(toTarget));
-    if (angle > attackerConfig.attack.arcDegrees / 2 && distance > attackerConfig.attack.range * 0.72) {
-      return { type: "attack_whiff", attacker, target };
-    }
 
-    if (timestamp < state.invulnerableUntil) {
+    if (timestamp < targetState.invulnerableUntil) {
       return {
         type: "attack_evaded",
         attacker,
         target,
-        hitstopMs: Math.round(attackerConfig.attack.blockHitstopMs * 0.65),
+        hitstopMs: Math.round(activeAttack.blockHitstopMs * 0.65),
+        moveId: activeAttack.id,
+        moveLabel: activeAttack.label,
       };
     }
 
     const blocked = this.isBlockingHit(target, attacker, targetConfig);
     const damage = blocked
-      ? Math.max(attackerConfig.attack.chipDamage, attackerConfig.attack.damage * targetConfig.defense.blockDamageMultiplier)
-      : attackerConfig.attack.damage;
+      ? Math.max(activeAttack.chipDamage, activeAttack.damage * targetConfig.defense.blockDamageMultiplier)
+      : activeAttack.damage;
     target.applyDamage(damage);
-    state.lastHitAt = timestamp;
+    targetState.lastHitAt = timestamp;
 
-    const knockback = attackerConfig.attack.knockback * knockbackScale * (blocked ? 0.32 : 1);
+    const knockback = activeAttack.knockback * knockbackScale * (blocked ? 0.32 : 1);
     target.body.velocity.x += toTarget.x * knockback;
     target.body.velocity.z += toTarget.z * knockback;
     target.body.velocity.y = Math.max(target.body.velocity.y, knockback * (blocked ? 0.08 : 0.16));
 
     if (blocked) {
-      state.phase = "blocking";
-      state.phaseEndsAt = timestamp + attackerConfig.attack.blockstunMs;
+      targetState.phase = "blocking";
+      targetState.phaseEndsAt = timestamp + activeAttack.blockstunMs;
       return {
         type: "attack_blocked",
         attacker,
         target,
         damage,
-        hitstopMs: attackerConfig.attack.blockHitstopMs,
-        phase: state.phase,
+        hitstopMs: activeAttack.blockHitstopMs,
+        phase: targetState.phase,
+        moveId: activeAttack.id,
+        moveLabel: activeAttack.label,
       };
     }
 
-    state.phase = "stunned";
-    state.phaseEndsAt = timestamp + attackerConfig.attack.hitstunMs * targetConfig.defense.stunScale;
-    state.blockHeld = false;
-    const bleedApplied = this.randomFn() < attackerConfig.attack.bleedChance;
+    targetState.phase = "stunned";
+    targetState.phaseEndsAt = timestamp + activeAttack.hitstunMs * targetConfig.defense.stunScale;
+    targetState.blockHeld = false;
+    const bleedApplied = this.randomFn() < activeAttack.bleedChance;
+    if (bleedApplied) {
+      targetState.bleedingUntil = Math.max(targetState.bleedingUntil, timestamp + activeAttack.bleedDurationMs);
+    }
     return {
       type: "attack_hit",
       attacker,
       target,
       damage,
-      hitstopMs: attackerConfig.attack.hitstopMs,
-      phase: state.phase,
+      hitstopMs: activeAttack.hitstopMs,
+      phase: targetState.phase,
+      moveId: activeAttack.id,
+      moveLabel: activeAttack.label,
       bleed: {
         applied: bleedApplied,
-        chance: attackerConfig.attack.bleedChance,
-        durationMs: attackerConfig.attack.bleedDurationMs,
-        tickDamage: attackerConfig.attack.bleedTickDamage,
-        tickMs: attackerConfig.attack.bleedTickMs,
+        chance: activeAttack.bleedChance,
+        durationMs: activeAttack.bleedDurationMs,
+        tickDamage: activeAttack.bleedTickDamage,
+        tickMs: activeAttack.bleedTickMs,
       },
     };
   }
@@ -355,7 +375,22 @@ export class CombatSystem {
     state.phase = speed > 0.2 ? "moving" : "idle";
     state.phaseEndsAt = null;
     state.attackTarget = null;
+    state.attackId = null;
     state.attackResolved = false;
+  }
+
+  private getAttack(config: CharacterConfig, moveId: string): AttackProfile | null {
+    return config.attacks.find((attack) => attack.id === moveId) ?? null;
+  }
+
+  private getActiveAttack(config: CharacterConfig, state: FighterCombatState): AttackProfile {
+    if (state.attackId) {
+      const selected = this.getAttack(config, state.attackId);
+      if (selected) {
+        return selected;
+      }
+    }
+    return config.attack;
   }
 
   private ensureState(character: Character): FighterCombatState {

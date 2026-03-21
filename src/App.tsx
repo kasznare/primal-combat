@@ -17,7 +17,7 @@ const EMPTY_ROUND_STATE: RoundState = {
   message: null,
   countdownEndAt: null,
   roundEndsAt: null,
-  roundDurationMs: 90_000,
+  roundDurationMs: 75_000,
 };
 
 export default function App() {
@@ -203,6 +203,7 @@ export default function App() {
         <div className="control-grid">
           <span>Move: WASD / Arrows</span>
           <span>Attack: F</span>
+          <span>Special: R</span>
           <span>Block: Q</span>
           <span>Dodge: E</span>
           <span>Jump / Ascend: Space</span>

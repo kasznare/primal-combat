@@ -30,9 +30,13 @@ export abstract class Character {
   public health: number;
   public maxHealth: number;
   public healthBarVisible = false;
-  private flashableMaterials: THREE.Material[] = [];
+  private flashableMaterials: Array<{
+    material: THREE.Material;
+    baseColor: THREE.Color | null;
+  }> = [];
   private hitFlashEndTs = 0;
   private hitFlashActive = false;
+  private woundSeverity = 0;
 
   // Health bar elements.
   public healthBarContainer: HTMLDivElement;
@@ -154,12 +158,14 @@ export abstract class Character {
     }
     this.health = Math.max(0, this.health - amount);
     this.hitFlashEndTs = performance.now() + 160;
+    this.woundSeverity = Math.min(0.75, this.woundSeverity + amount / Math.max(120, this.maxHealth * 1.2));
   }
 
   public healToFull(): void {
     this.health = this.maxHealth;
     this.hitFlashEndTs = 0;
     this.hitFlashActive = false;
+    this.woundSeverity = 0;
   }
 
   public heal(amount: number): void {
@@ -188,24 +194,34 @@ export abstract class Character {
         return;
       }
       if (Array.isArray(material)) {
-        material.forEach((entry) => this.flashableMaterials.push(entry));
+        material.forEach((entry) =>
+          this.flashableMaterials.push({
+            material: entry,
+            baseColor: "color" in entry ? (entry.color as THREE.Color).clone() : null,
+          })
+        );
         return;
       }
-      this.flashableMaterials.push(material);
+      this.flashableMaterials.push({
+        material,
+        baseColor: "color" in material ? (material.color as THREE.Color).clone() : null,
+      });
     });
   }
 
   private updateHitFlash(): void {
     const shouldFlash = performance.now() < this.hitFlashEndTs;
-    if (shouldFlash === this.hitFlashActive) {
-      return;
-    }
-
     this.hitFlashActive = shouldFlash;
-    this.flashableMaterials.forEach((material) => {
+    this.flashableMaterials.forEach(({ material, baseColor }) => {
       const withEmissive = material as THREE.MeshStandardMaterial | THREE.MeshLambertMaterial;
       if (!("emissive" in withEmissive)) {
+        if (baseColor && "color" in material) {
+          (material.color as THREE.Color).copy(baseColor).lerp(new THREE.Color(0x6b1414), this.woundSeverity);
+        }
         return;
+      }
+      if (baseColor && "color" in withEmissive) {
+        withEmissive.color.copy(baseColor).lerp(new THREE.Color(0x6b1414), this.woundSeverity);
       }
       if (shouldFlash) {
         withEmissive.emissive.setHex(0xff4422);

@@ -28,7 +28,7 @@ import { GameCameraController } from "./camera/GameCameraController.js";
 import { AudioSystem } from "./audio/AudioSystem.js";
 
 const ROUND_COUNTDOWN_MS = 1_200;
-const ROUND_DURATION_MS = 90_000;
+const ROUND_DURATION_MS = 75_000;
 const HUD_EMIT_INTERVAL_MS = 100;
 
 export class Game {
@@ -128,6 +128,7 @@ export class Game {
     this.cameraController = new GameCameraController();
     this.animationSystem = new CharacterAnimationSystem();
     this.bloodEffectsSystem = new BloodEffectsSystem();
+    this.bloodEffectsSystem.setQuality(this.currentQuality);
     this.audioSystem = new AudioSystem();
 
     this.cameraController.frameMenu(this.camera, this.currentScene);
@@ -200,6 +201,7 @@ export class Game {
     this.renderer.setPixelRatio(getPixelRatioCap(quality));
     this.renderer.shadowMap.enabled = quality !== "low";
     this.sceneSelector.setQuality(quality);
+    this.bloodEffectsSystem.setQuality(quality);
     this.sceneSelector.select(this.currentScene);
     this.cameraController.frameMenu(this.camera, this.currentScene);
     this.gameStateManager.setMenu();
@@ -292,23 +294,45 @@ export class Game {
       );
       this.processCombatEvent(blockEvent);
 
-      if (this.inputManager.consumeKey("KeyE")) {
+      if (this.inputManager.hasBufferedPress("KeyE", timestamp, 180)) {
         const dodgeEvent = this.combatSystem.tryDodge(
           this.playerCharacter,
           this.playerConfig,
           this.inputManager.getMovementVector(this.camera),
           timestamp
         );
+        if (dodgeEvent) {
+          this.inputManager.clearBufferedPress("KeyE");
+        }
         this.processCombatEvent(dodgeEvent);
       }
 
-      if (this.inputManager.consumeKey("KeyF")) {
+      if (this.inputManager.hasBufferedPress("KeyF", timestamp, 180)) {
         const attackEvent = this.combatSystem.startAttack(
           this.playerCharacter,
           this.opponentCharacter,
           this.playerConfig,
-          timestamp
+          timestamp,
+          this.playerConfig.attack.id
         );
+        if (attackEvent) {
+          this.inputManager.clearBufferedPress("KeyF");
+        }
+        this.processCombatEvent(attackEvent);
+      }
+
+      const secondaryAttack = this.playerConfig.attacks[1];
+      if (secondaryAttack && this.inputManager.hasBufferedPress("KeyR", timestamp, 220)) {
+        const attackEvent = this.combatSystem.startAttack(
+          this.playerCharacter,
+          this.opponentCharacter,
+          this.playerConfig,
+          timestamp,
+          secondaryAttack.id
+        );
+        if (attackEvent) {
+          this.inputManager.clearBufferedPress("KeyR");
+        }
         this.processCombatEvent(attackEvent);
       }
 
@@ -320,7 +344,8 @@ export class Game {
           this.playerConfig,
           this.combatSystem.getMovementScale(this.playerCharacter),
           arenaModifiers,
-          deltaSeconds
+          deltaSeconds,
+          timestamp
         );
       } else {
         this.playerCharacter.body.velocity.x *= 0.92;
@@ -571,7 +596,7 @@ export class Game {
     }
 
     const arena = this.arenaRules.getRuntimeModifiers(this.currentScene, timestamp);
-    this.options.onHudStateChanged({
+    const hudState = {
       phase: this.gameStateManager.getPhase(),
       quality: this.currentQuality,
       timerMs: this.gameStateManager.getRemainingMs(timestamp),
@@ -581,14 +606,25 @@ export class Game {
             label: this.playerConfig.label,
             health: this.playerCharacter.health,
             maxHealth: this.playerCharacter.maxHealth,
-            cooldownProgress: this.combatSystem.getCooldownProgress(
-              this.playerCharacter,
-              this.playerConfig,
-              timestamp
-            ),
+          cooldownProgress: this.combatSystem.getCooldownProgress(
+            this.playerCharacter,
+            this.playerConfig,
+            timestamp
+          ),
+            secondaryCooldownProgress: this.playerConfig.attacks[1]
+              ? this.combatSystem.getCooldownProgress(
+                  this.playerCharacter,
+                  this.playerConfig,
+                  timestamp,
+                  this.playerConfig.attacks[1].id
+                )
+              : 1,
             dodgeReady: this.combatSystem.isDodgeReady(this.playerCharacter, timestamp),
             phase: this.combatSystem.getPhase(this.playerCharacter),
             blocking: this.combatSystem.getPhase(this.playerCharacter) === "blocking",
+            bleeding: this.combatSystem.isBleeding(this.playerCharacter, timestamp),
+            primaryMoveLabel: this.playerConfig.attack.label,
+            secondaryMoveLabel: this.playerConfig.attacks[1]?.label ?? null,
           }
         : null,
       opponent: this.opponentCharacter && this.opponentConfig
@@ -597,14 +633,25 @@ export class Game {
             label: this.opponentConfig.label,
             health: this.opponentCharacter.health,
             maxHealth: this.opponentCharacter.maxHealth,
-            cooldownProgress: this.combatSystem.getCooldownProgress(
-              this.opponentCharacter,
-              this.opponentConfig,
-              timestamp
-            ),
+          cooldownProgress: this.combatSystem.getCooldownProgress(
+            this.opponentCharacter,
+            this.opponentConfig,
+            timestamp
+          ),
+            secondaryCooldownProgress: this.opponentConfig.attacks[1]
+              ? this.combatSystem.getCooldownProgress(
+                  this.opponentCharacter,
+                  this.opponentConfig,
+                  timestamp,
+                  this.opponentConfig.attacks[1].id
+                )
+              : 1,
             dodgeReady: this.combatSystem.isDodgeReady(this.opponentCharacter, timestamp),
             phase: this.combatSystem.getPhase(this.opponentCharacter),
             blocking: this.combatSystem.getPhase(this.opponentCharacter) === "blocking",
+            bleeding: this.combatSystem.isBleeding(this.opponentCharacter, timestamp),
+            primaryMoveLabel: this.opponentConfig.attack.label,
+            secondaryMoveLabel: this.opponentConfig.attacks[1]?.label ?? null,
           }
         : null,
       arena: {
@@ -613,7 +660,161 @@ export class Game {
         effect: arena.effectDescription,
         hazardActive: arena.hazardActive,
       },
-    });
+    };
+    this.options.onHudStateChanged(hudState);
+    if (import.meta.env.DEV) {
+      (
+        window as Window & {
+          __PRIMAL_DEBUG__?: {
+            hudState: typeof hudState;
+            playerPosition: { x: number; y: number; z: number } | null;
+            opponentPosition: { x: number; y: number; z: number } | null;
+            blood: { pools: number; sprays: number };
+          };
+          __PRIMAL_DEBUG_API__?: {
+            forceRoundOver: (outcome: "player" | "opponent" | "draw", message: string) => void;
+          };
+        }
+      ).__PRIMAL_DEBUG__ = {
+        hudState,
+        playerPosition: this.playerCharacter
+          ? {
+              x: this.playerCharacter.body.position.x,
+              y: this.playerCharacter.body.position.y,
+              z: this.playerCharacter.body.position.z,
+            }
+          : null,
+        opponentPosition: this.opponentCharacter
+          ? {
+              x: this.opponentCharacter.body.position.x,
+              y: this.opponentCharacter.body.position.y,
+              z: this.opponentCharacter.body.position.z,
+            }
+          : null,
+        blood: this.bloodEffectsSystem.getStats(),
+      };
+      (
+        window as Window & {
+          __PRIMAL_DEBUG_API__?: {
+            forceRoundOver: (outcome: "player" | "opponent" | "draw", message: string) => void;
+            restartBattle: () => void;
+            setPositions: (
+              player: { x: number; z: number },
+              opponent: { x: number; z: number }
+            ) => void;
+            triggerPlayerAttack: (move: "primary" | "secondary") => void;
+            simulatePlayerMovement: (direction: "forward" | "back" | "left" | "right", steps?: number) => void;
+            debugStrikeOpponent: (move: "primary" | "secondary") => void;
+          };
+        }
+      ).__PRIMAL_DEBUG_API__ = {
+        forceRoundOver: (outcome, message) => {
+          this.gameStateManager.finishRound(outcome, message);
+          this.emitRoundState();
+          this.emitHudState(performance.now(), true);
+        },
+        restartBattle: () => {
+          if (!this.playerConfig || !this.opponentConfig) {
+            return;
+          }
+          this.startBattle(this.playerConfig.key, this.opponentConfig.key);
+        },
+        setPositions: (player, opponent) => {
+          if (this.playerCharacter) {
+            this.playerCharacter.body.position.x = player.x;
+            this.playerCharacter.body.position.z = player.z;
+            this.playerCharacter.body.velocity.set(0, this.playerCharacter.body.velocity.y, 0);
+            this.playerCharacter.mesh.position.x = player.x;
+            this.playerCharacter.mesh.position.z = player.z;
+          }
+          if (this.opponentCharacter) {
+            this.opponentCharacter.body.position.x = opponent.x;
+            this.opponentCharacter.body.position.z = opponent.z;
+            this.opponentCharacter.body.velocity.set(0, this.opponentCharacter.body.velocity.y, 0);
+            this.opponentCharacter.mesh.position.x = opponent.x;
+            this.opponentCharacter.mesh.position.z = opponent.z;
+          }
+          this.emitHudState(performance.now(), true);
+        },
+        triggerPlayerAttack: (move) => {
+          if (!this.playerCharacter || !this.opponentCharacter || !this.playerConfig || !this.opponentConfig) {
+            return;
+          }
+          const selectedMove = move === "secondary" ? this.playerConfig.attacks[1] ?? this.playerConfig.attack : this.playerConfig.attack;
+          this.opponentCharacter.applyDamage(selectedMove.damage);
+          this.processCombatEvent({
+            type: "attack_hit",
+            attacker: this.playerCharacter,
+            target: this.opponentCharacter,
+            damage: selectedMove.damage,
+            hitstopMs: selectedMove.hitstopMs,
+            moveId: selectedMove.id,
+            moveLabel: selectedMove.label,
+            phase: "stunned",
+            bleed: {
+              applied: true,
+              chance: selectedMove.bleedChance,
+              durationMs: selectedMove.bleedDurationMs,
+              tickDamage: selectedMove.bleedTickDamage,
+              tickMs: selectedMove.bleedTickMs,
+            },
+          });
+          this.emitHudState(performance.now(), true);
+        },
+        simulatePlayerMovement: (direction, steps = 18) => {
+          if (!this.playerCharacter) {
+            return;
+          }
+          const forward = new THREE.Vector3();
+          this.camera.getWorldDirection(forward);
+          forward.y = 0;
+          forward.normalize();
+          const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+          const moveDirection = new THREE.Vector3();
+          if (direction === "forward") {
+            moveDirection.copy(forward);
+          } else if (direction === "back") {
+            moveDirection.copy(forward).multiplyScalar(-1);
+          } else if (direction === "right") {
+            moveDirection.copy(right);
+          } else {
+            moveDirection.copy(right).multiplyScalar(-1);
+          }
+
+          const distance = (steps / 18) * 0.8;
+          this.playerCharacter.body.position.x += moveDirection.x * distance;
+          this.playerCharacter.body.position.z += moveDirection.z * distance;
+          this.playerCharacter.mesh.position.x = this.playerCharacter.body.position.x;
+          this.playerCharacter.mesh.position.z = this.playerCharacter.body.position.z;
+          this.emitHudState(performance.now(), true);
+        },
+        debugStrikeOpponent: (move) => {
+          if (!this.playerCharacter || !this.opponentCharacter || !this.playerConfig) {
+            return;
+          }
+          const selectedMove = move === "secondary" ? this.playerConfig.attacks[1] ?? this.playerConfig.attack : this.playerConfig.attack;
+          this.opponentCharacter.applyDamage(selectedMove.damage);
+          this.processCombatEvent({
+            type: "attack_hit",
+            attacker: this.playerCharacter,
+            target: this.opponentCharacter,
+            damage: selectedMove.damage,
+            hitstopMs: selectedMove.hitstopMs,
+            moveId: selectedMove.id,
+            moveLabel: selectedMove.label,
+            phase: "stunned",
+            bleed: {
+              applied: true,
+              chance: selectedMove.bleedChance,
+              durationMs: selectedMove.bleedDurationMs,
+              tickDamage: selectedMove.bleedTickDamage,
+              tickMs: selectedMove.bleedTickMs,
+            },
+          });
+          this.emitHudState(performance.now(), true);
+        },
+      };
+    }
     this.lastHudEmitAt = timestamp;
   }
 

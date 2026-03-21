@@ -3,12 +3,12 @@ import type { RoundOutcome, RoundPhase, RoundState } from "./types/RoundState";
 export class GameStateManager {
   private state: RoundState = {
     phase: "menu",
-    outcome: null,
-    message: null,
-    countdownEndAt: null,
-    roundEndsAt: null,
-    roundDurationMs: 90_000,
-  };
+      outcome: null,
+      message: null,
+      countdownEndAt: null,
+      roundEndsAt: null,
+      roundDurationMs: 75_000,
+    };
 
   private pauseStartedAt: number | null = null;
   private pausedFrom: RoundPhase | null = null;

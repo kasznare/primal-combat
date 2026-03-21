@@ -36,13 +36,23 @@ export function HUD({ hudState, roundState, onRematch }: HUDProps) {
             </div>
             <div className="combatant-meta">
               <span>{player.phase}</span>
-              <span>{player.blocking ? "Guarding" : player.dodgeReady ? "Dodge Ready" : "Recovering"}</span>
+              <span>{player.bleeding ? "Bleeding" : player.blocking ? "Guarding" : player.dodgeReady ? "Dodge Ready" : "Recovering"}</span>
             </div>
             <div className="cooldown-bar">
               <div
                 className="cooldown-bar__fill"
                 style={{ width: `${player.cooldownProgress * 100}%` }}
               />
+            </div>
+            <div className="cooldown-bar cooldown-bar--secondary">
+              <div
+                className="cooldown-bar__fill cooldown-bar__fill--secondary"
+                style={{ width: `${player.secondaryCooldownProgress * 100}%` }}
+              />
+            </div>
+            <div className="move-labels">
+              <span>F: {player.primaryMoveLabel}</span>
+              {player.secondaryMoveLabel ? <span>R: {player.secondaryMoveLabel}</span> : null}
             </div>
           </section>
 
@@ -69,13 +79,23 @@ export function HUD({ hudState, roundState, onRematch }: HUDProps) {
             </div>
             <div className="combatant-meta">
               <span>{opponent.phase}</span>
-              <span>{opponent.blocking ? "Guarding" : opponent.dodgeReady ? "Dodge Ready" : "Recovering"}</span>
+              <span>{opponent.bleeding ? "Bleeding" : opponent.blocking ? "Guarding" : opponent.dodgeReady ? "Dodge Ready" : "Recovering"}</span>
             </div>
             <div className="cooldown-bar">
               <div
                 className="cooldown-bar__fill"
                 style={{ width: `${opponent.cooldownProgress * 100}%` }}
               />
+            </div>
+            <div className="cooldown-bar cooldown-bar--secondary">
+              <div
+                className="cooldown-bar__fill cooldown-bar__fill--secondary"
+                style={{ width: `${opponent.secondaryCooldownProgress * 100}%` }}
+              />
+            </div>
+            <div className="move-labels">
+              <span>F: {opponent.primaryMoveLabel}</span>
+              {opponent.secondaryMoveLabel ? <span>R: {opponent.secondaryMoveLabel}</span> : null}
             </div>
           </section>
         </div>

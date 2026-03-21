@@ -55,12 +55,41 @@ function createFlag(): THREE.Group {
   return group;
 }
 
+function createBeacon(): THREE.Group {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2, 1.5, 0.5, 16),
+    new THREE.MeshStandardMaterial({ color: 0x828791, roughness: 0.96, metalness: 0.08 })
+  );
+  base.position.y = 0.25;
+  group.add(base);
+
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.12, 3.4, 8),
+    new THREE.MeshStandardMaterial({ color: 0xcbd3de, roughness: 0.6, metalness: 0.3 })
+  );
+  mast.position.y = 2;
+  group.add(mast);
+
+  const beacon = new THREE.Mesh(
+    new THREE.SphereGeometry(0.34, 12, 12),
+    new THREE.MeshStandardMaterial({ color: 0x8fd6ff, emissive: 0x5db8ff, emissiveIntensity: 1.2, roughness: 0.25 })
+  );
+  beacon.position.y = 3.72;
+  group.add(beacon);
+  group.userData.generated = true;
+  return group;
+}
+
 export function generateMoon(
   scene: THREE.Scene,
   physicsWorld: CANNON.World,
   areaSize: number,
   staticMaterial: CANNON.Material
 ): void {
+  const beacon = createBeacon();
+  scene.add(beacon);
+
   const craterCount = scaledCount(7, 8);
   for (let i = 0; i < craterCount; i++) {
     const radius = random(1.4, 4.8);
@@ -124,4 +153,20 @@ export function generateMoon(
   const flag = createFlag();
   flag.position.set(-areaSize * 0.18, 0, areaSize * 0.12);
   scene.add(flag);
+
+  const centerRing = new THREE.Mesh(
+    new THREE.RingGeometry(5.4, 6.3, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0x93a0b4,
+      roughness: 1,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.72,
+      side: THREE.DoubleSide,
+    })
+  );
+  centerRing.rotation.x = -Math.PI / 2;
+  centerRing.position.y = 0.025;
+  centerRing.userData.generated = true;
+  scene.add(centerRing);
 }

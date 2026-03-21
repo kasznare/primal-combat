@@ -8,7 +8,7 @@ import {
   isTargetWithinFieldOfView,
   rotateTowardDirection,
 } from "./movement/MovementDynamics";
-import type { CharacterConfig } from "./roster/types";
+import type { AttackProfile, CharacterConfig } from "./roster/types";
 
 export class AIController {
   public update(
@@ -102,9 +102,16 @@ export class AIController {
     }
 
     const attackRhythm = (Math.sin(timestamp / 250 + opponentConfig.attack.damage) + 1) / 2;
-    const inRange = distance <= opponentConfig.attack.range * (0.95 + opponentConfig.ai.pressureBias * 0.18);
+    const selectedAttack = this.chooseAttack(opponentConfig, playerState, distance, attackRhythm);
+    const inRange = distance <= selectedAttack.range * (0.95 + opponentConfig.ai.pressureBias * 0.18);
     if (inRange && canSeeTarget && attackRhythm <= opponentConfig.ai.aggression) {
-      const attackEvent = combatSystem.startAttack(opponent, player, opponentConfig, timestamp);
+      const attackEvent = combatSystem.startAttack(
+        opponent,
+        player,
+        opponentConfig,
+        timestamp,
+        selectedAttack.id
+      );
       if (attackEvent) {
         events.push(attackEvent);
       }
@@ -159,5 +166,29 @@ export class AIController {
       return desiredDirection.clone().multiplyScalar(-0.6).normalize();
     }
     return lateral.multiplyScalar(config.ai.strafeBias * strafeDirection).add(desiredDirection.clone().multiplyScalar(0.3)).normalize();
+  }
+
+  private chooseAttack(
+    config: CharacterConfig,
+    playerState: ReturnType<CombatSystem["getState"]>,
+    distance: number,
+    rhythm: number
+  ): AttackProfile {
+    let bestAttack = config.attack;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    config.attacks.forEach((attack) => {
+      const rangeScore = 1 - Math.min(1.3, Math.abs(distance - attack.idealRange) / Math.max(0.5, attack.range));
+      const pressureBonus = playerState.phase === "blocking" ? attack.chipDamage * 0.06 : 0;
+      const finishBonus = attack.damage * 0.012 + attack.bleedChance * 0.3;
+      const cadenceBonus = rhythm > 0.65 && attack.input === "secondary" ? 0.22 : 0;
+      const score = rangeScore + attack.aiWeight + pressureBonus + finishBonus + cadenceBonus;
+      if (score > bestScore) {
+        bestScore = score;
+        bestAttack = attack;
+      }
+    });
+
+    return bestAttack;
   }
 }

@@ -134,4 +134,28 @@ describe("CombatSystem", () => {
     expect(hitEvent?.bleed?.applied).toBe(true);
     expect(hitEvent?.bleed?.tickDamage).toBe(attackerConfig.attack.bleedTickDamage);
   });
+
+  it("supports selecting a secondary move with its own reach and metadata", () => {
+    const combatSystem = new CombatSystem(() => 0);
+    const attacker = createMockCharacter("Human", 0, 0);
+    const target = createMockCharacter("Bear", 0, 2.55);
+    attacker.mesh.position.copy(attacker.body.position as unknown as THREE.Vector3);
+    target.mesh.position.copy(target.body.position as unknown as THREE.Vector3);
+
+    const attackerConfig = CHARACTER_CONFIGS.Human;
+    const targetConfig = CHARACTER_CONFIGS.Bear;
+    const specialMove = attackerConfig.attacks[1];
+
+    combatSystem.resetCharacter(attacker);
+    combatSystem.resetCharacter(target);
+
+    expect(combatSystem.startAttack(attacker, target, attackerConfig, 0, attackerConfig.attack.id)).toBeNull();
+    expect(combatSystem.startAttack(attacker, target, attackerConfig, 0, specialMove.id)?.moveId).toBe(specialMove.id);
+
+    const events = combatSystem.updateFighter(attacker, target, attackerConfig, targetConfig, 200, 1);
+    const hitEvent = events.find((event) => event.type === "attack_hit");
+    expect(hitEvent?.moveId).toBe(specialMove.id);
+    expect(hitEvent?.moveLabel).toBe(specialMove.label);
+    expect(target.health).toBeLessThan(100);
+  });
 });

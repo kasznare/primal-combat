@@ -9,9 +9,13 @@ export type CombatantHudState = {
   health: number;
   maxHealth: number;
   cooldownProgress: number;
+  secondaryCooldownProgress: number;
   dodgeReady: boolean;
   phase: FighterPhase;
   blocking: boolean;
+  bleeding: boolean;
+  primaryMoveLabel: string;
+  secondaryMoveLabel: string | null;
 };
 
 export type ArenaHudState = {

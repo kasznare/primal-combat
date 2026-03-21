@@ -15,12 +15,15 @@ export type FighterCombatState = {
   phase: FighterPhase;
   phaseEndsAt: number | null;
   attackTarget: Character | null;
+  attackId: string | null;
   attackResolved: boolean;
   blockHeld: boolean;
   invulnerableUntil: number;
   dodgeCooldownUntil: number;
   lastAttackAt: number;
   lastHitAt: number;
+  moveCooldownUntil: Record<string, number>;
+  bleedingUntil: number;
 };
 
 export type CombatEventType =
@@ -41,6 +44,8 @@ export type CombatEvent = {
   damage?: number;
   hitstopMs?: number;
   phase?: FighterPhase;
+  moveId?: string;
+  moveLabel?: string;
   bleed?: {
     applied: boolean;
     chance: number;

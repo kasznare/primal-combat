@@ -10,9 +10,30 @@ export type MovementArchetype =
   | "colossus"
   | "tiny";
 
+export type AttackInput = "primary" | "secondary";
+
+export type HitboxProfile = {
+  forward: number;
+  up: number;
+  radius: number;
+  length: number;
+  lateral?: number;
+};
+
+export type HurtboxProfile = {
+  torsoRadius: number;
+  torsoHeight: number;
+  headRadius: number;
+  headHeight: number;
+};
+
 export type AttackProfile = {
+  id: string;
+  label: string;
+  input: AttackInput;
   damage: number;
   range: number;
+  idealRange: number;
   cooldownMs: number;
   startupMs: number;
   activeMs: number;
@@ -28,6 +49,8 @@ export type AttackProfile = {
   bleedDurationMs: number;
   bleedTickDamage: number;
   bleedTickMs: number;
+  aiWeight: number;
+  hitbox: HitboxProfile;
 };
 
 export type DefenseProfile = {
@@ -37,6 +60,7 @@ export type DefenseProfile = {
   dodgeDurationMs: number;
   dodgeSpeedMultiplier: number;
   stunScale: number;
+  hurtbox: HurtboxProfile;
 };
 
 export type MovementProfile = {
@@ -60,7 +84,7 @@ export type AnimationProfile = {
   attackLunge: number;
   dodgeTilt: number;
   hitTilt: number;
-  rigProfile?: "generic" | "human" | "bear";
+  rigProfile?: "generic" | "human" | "bear" | "humanoid" | "quadruped" | "winged" | "vehicle" | "colossus" | "tiny";
 };
 
 export type AudioProfile = {
@@ -106,6 +130,7 @@ export type CharacterConfig = {
   stats: ICharacterOptions;
   movement: MovementProfile;
   attack: AttackProfile;
+  attacks: AttackProfile[];
   defense: DefenseProfile;
   ai: AiProfile;
   animation: AnimationProfile;

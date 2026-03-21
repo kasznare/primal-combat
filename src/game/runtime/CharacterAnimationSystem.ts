@@ -10,7 +10,7 @@ type TransformSnapshot = {
 };
 
 type CharacterRig = {
-  profile: "generic" | "human" | "bear";
+  profile: "generic" | "human" | "bear" | "humanoid" | "quadruped" | "winged" | "vehicle" | "colossus" | "tiny";
   rootScale: THREE.Vector3;
   nodes: Record<string, THREE.Object3D>;
   transforms: Record<string, TransformSnapshot>;
@@ -25,7 +25,7 @@ export class CharacterAnimationSystem {
     combatState: FighterCombatState,
     timestamp: number
   ): void {
-    const rig = this.getRig(character);
+    const rig = this.getRig(character, config.animation.rigProfile ?? "generic");
     const phase = combatState.phase;
     const speed = Math.hypot(character.body.velocity.x, character.body.velocity.z);
     const locomotion = THREE.MathUtils.clamp(speed / Math.max(0.001, config.stats.maxVelocity), 0, 1);
@@ -73,16 +73,16 @@ export class CharacterAnimationSystem {
     this.restoreRig(rig);
   }
 
-  private getRig(character: Character): CharacterRig {
+  private getRig(
+    character: Character,
+    requestedProfile: CharacterRig["profile"]
+  ): CharacterRig {
     const existing = this.rigs.get(character);
     if (existing) {
+      existing.profile = requestedProfile;
       return existing;
     }
 
-    const profile =
-      character.mesh.userData.rigProfile === "human" || character.mesh.userData.rigProfile === "bear"
-        ? character.mesh.userData.rigProfile
-        : "generic";
     const nodes: Record<string, THREE.Object3D> = {};
     const transforms: Record<string, TransformSnapshot> = {};
 
@@ -100,7 +100,7 @@ export class CharacterAnimationSystem {
     });
 
     const created: CharacterRig = {
-      profile,
+      profile: requestedProfile,
       rootScale: character.mesh.scale.clone(),
       nodes,
       transforms,
@@ -332,9 +332,11 @@ export class CharacterAnimationSystem {
     }
 
     const elapsed = Math.max(0, timestamp - combatState.lastAttackAt);
-    const startup = config.attack.startupMs;
-    const active = config.attack.activeMs;
-    const recovery = config.attack.recoveryMs;
+    const attack =
+      (combatState.attackId && config.attacks.find((entry) => entry.id === combatState.attackId)) || config.attack;
+    const startup = attack.startupMs;
+    const active = attack.activeMs;
+    const recovery = attack.recoveryMs;
 
     if (combatState.phase === "attackStartup") {
       return THREE.MathUtils.clamp(elapsed / Math.max(1, startup), 0, 1) * 0.7;

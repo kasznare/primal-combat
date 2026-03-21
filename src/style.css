@@ -143,6 +143,12 @@ body {
   background: rgba(255, 255, 255, 0.07);
 }
 
+.cooldown-bar--secondary {
+  height: 0.28rem;
+  margin-top: 0.22rem;
+  opacity: 0.9;
+}
+
 .health-bar__fill,
 .cooldown-bar__fill {
   height: 100%;
@@ -160,6 +166,20 @@ body {
 
 .cooldown-bar__fill {
   background: linear-gradient(90deg, rgba(245, 205, 131, 0.92) 0%, rgba(245, 140, 71, 0.96) 100%);
+}
+
+.cooldown-bar__fill--secondary {
+  background: linear-gradient(90deg, rgba(118, 188, 255, 0.92) 0%, rgba(84, 132, 255, 0.96) 100%);
+}
+
+.move-labels {
+  display: grid;
+  gap: 0.12rem;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: rgba(240, 233, 221, 0.72);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .match-core {

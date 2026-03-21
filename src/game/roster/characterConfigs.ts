@@ -60,6 +60,7 @@ function buildCharacterConfig(key: string): CharacterConfig {
     },
     movement: tuning.movement,
     attack: tuning.attack,
+    attacks: tuning.attacks,
     defense: tuning.defense,
     ai: tuning.ai,
     animation: tuning.animation,

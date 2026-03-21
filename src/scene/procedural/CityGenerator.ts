@@ -58,12 +58,44 @@ function createBillboard(): THREE.Group {
   return group;
 }
 
+function createTrafficIsland(): THREE.Group {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.1, 2.4, 0.35, 20),
+    new THREE.MeshStandardMaterial({ color: 0x6e747d, roughness: 0.88, metalness: 0.12 })
+  );
+  base.position.y = 0.18;
+  group.add(base);
+
+  const core = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.72, 0.96, 2.8, 10),
+    new THREE.MeshStandardMaterial({ color: 0x3b4652, roughness: 0.72, metalness: 0.22 })
+  );
+  core.position.y = 1.55;
+  core.castShadow = true;
+  group.add(core);
+
+  const halo = new THREE.Mesh(
+    new THREE.TorusGeometry(1.2, 0.12, 10, 26),
+    new THREE.MeshStandardMaterial({ color: 0xf2b95d, emissive: 0xd9842c, emissiveIntensity: 0.9, roughness: 0.45 })
+  );
+  halo.rotation.x = Math.PI / 2;
+  halo.position.y = 2.45;
+  group.add(halo);
+
+  group.userData.generated = true;
+  return group;
+}
+
 export function generateCity(
   scene: THREE.Scene,
   physicsWorld: CANNON.World,
   areaSize: number,
   staticMaterial: CANNON.Material
 ): void {
+  const island = createTrafficIsland();
+  scene.add(island);
+
   for (let i = -2; i <= 2; i++) {
     const roadX = new THREE.Mesh(
       new THREE.PlaneGeometry(areaSize, 3.2),
@@ -96,6 +128,15 @@ export function generateCity(
   sidewalk.position.y = -0.18;
   sidewalk.userData.generated = true;
   scene.add(sidewalk);
+
+  const centerMark = new THREE.Mesh(
+    new THREE.RingGeometry(4.8, 5.6, 40),
+    new THREE.MeshStandardMaterial({ color: 0xe1c27a, roughness: 0.82, metalness: 0.08, side: THREE.DoubleSide })
+  );
+  centerMark.rotation.x = -Math.PI / 2;
+  centerMark.position.y = 0.02;
+  centerMark.userData.generated = true;
+  scene.add(centerMark);
 
   const numBuildings = scaledCount(14, 12);
   for (let i = 0; i < numBuildings; i++) {

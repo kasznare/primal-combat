@@ -2,11 +2,15 @@ import * as THREE from 'three';
 
 export class InputManager {
   private keyStates: { [key: string]: boolean } = {};
+  private bufferedPresses: { [key: string]: number } = {};
 
   constructor() {
     document.addEventListener('keydown', (event) => {
       if (this.shouldIgnoreEventTarget(event.target, event.code)) {
         return;
+      }
+      if (!event.repeat) {
+        this.bufferedPresses[event.code] = performance.now();
       }
       this.keyStates[event.code] = true;
     });
@@ -72,6 +76,23 @@ export class InputManager {
       }
     }
     return false;
+  }
+
+  public hasBufferedPress(key: string, timestamp: number, bufferMs: number): boolean {
+    const pressedAt = this.bufferedPresses[key];
+    return Number.isFinite(pressedAt) && timestamp - pressedAt <= bufferMs;
+  }
+
+  public consumeBufferedPress(key: string, timestamp: number, bufferMs: number): boolean {
+    if (!this.hasBufferedPress(key, timestamp, bufferMs)) {
+      return false;
+    }
+    delete this.bufferedPresses[key];
+    return true;
+  }
+
+  public clearBufferedPress(key: string): void {
+    delete this.bufferedPresses[key];
   }
 
   private shouldIgnoreEventTarget(target: EventTarget | null, code: string): boolean {

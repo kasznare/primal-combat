@@ -109,12 +109,48 @@ function createGrassPatch(): THREE.Group {
   return patch;
 }
 
+function createGladeMarker(): THREE.Group {
+  const group = new THREE.Group();
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(4.2, 5.4, 40),
+    new THREE.MeshStandardMaterial({
+      color: 0x7f8c6a,
+      roughness: 1,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide,
+    })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.03;
+  group.add(ring);
+
+  for (let i = 0; i < 8; i++) {
+    const monolith = new THREE.Mesh(
+      new THREE.BoxGeometry(random(0.35, 0.5), random(0.8, 1.4), random(0.35, 0.5)),
+      new THREE.MeshStandardMaterial({ color: 0x8f9498, roughness: 1, metalness: 0.04 })
+    );
+    const angle = (Math.PI * 2 * i) / 8;
+    monolith.position.set(Math.cos(angle) * 4.75, monolith.geometry.parameters.height * 0.5, Math.sin(angle) * 4.75);
+    monolith.rotation.y = angle + random(-0.24, 0.24);
+    monolith.castShadow = i % 2 === 0;
+    group.add(monolith);
+  }
+
+  group.userData.generated = true;
+  return group;
+}
+
 export function generateForest(
   scene: THREE.Scene,
   physicsWorld: CANNON.World,
   areaSize: number,
   staticMaterial: CANNON.Material
 ): void {
+  const glade = createGladeMarker();
+  scene.add(glade);
+
   const numTrees = scaledCount(24, 18);
   for (let i = 0; i < numTrees; i++) {
     const tree = createTree();
