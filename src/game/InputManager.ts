@@ -5,9 +5,15 @@ export class InputManager {
 
   constructor() {
     document.addEventListener('keydown', (event) => {
+      if (this.shouldIgnoreEventTarget(event.target, event.code)) {
+        return;
+      }
       this.keyStates[event.code] = true;
     });
     document.addEventListener('keyup', (event) => {
+      if (this.shouldIgnoreEventTarget(event.target, event.code)) {
+        return;
+      }
       this.keyStates[event.code] = false;
     });
   }
@@ -51,6 +57,14 @@ export class InputManager {
     this.keyStates[key] = false;
   }
 
+  public consumeKey(key: string): boolean {
+    if (!this.isKeyPressed(key)) {
+      return false;
+    }
+    this.resetKey(key);
+    return true;
+  }
+
   public anyKeyPressed(exclude: string[] = []): boolean {
     for (const key in this.keyStates) {
       if (!exclude.includes(key) && this.keyStates[key]) {
@@ -58,5 +72,26 @@ export class InputManager {
       }
     }
     return false;
+  }
+
+  private shouldIgnoreEventTarget(target: EventTarget | null, code: string): boolean {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    const interactiveTarget = target.closest("button, input, select, textarea, [contenteditable='true']");
+    if (!interactiveTarget) {
+      return false;
+    }
+
+    if (interactiveTarget instanceof HTMLButtonElement) {
+      return ["Space", "Enter", "NumpadEnter"].includes(code);
+    }
+
+    return (
+      interactiveTarget instanceof HTMLInputElement ||
+      interactiveTarget instanceof HTMLSelectElement ||
+      interactiveTarget instanceof HTMLTextAreaElement ||
+      interactiveTarget instanceof HTMLElement && interactiveTarget.isContentEditable
+    );
   }
 }

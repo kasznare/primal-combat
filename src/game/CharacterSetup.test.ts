@@ -7,7 +7,7 @@ describe("resolveCharacterKey", () => {
   });
 
   it("falls back for unknown key", () => {
-    expect(resolveCharacterKey("Dragon", "Human")).toBe("Human");
+    expect(resolveCharacterKey("UnknownBoss", "Human")).toBe("Human");
   });
 
   it("falls back for missing key", () => {

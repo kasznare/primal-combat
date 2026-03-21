@@ -29,6 +29,7 @@ export abstract class Character {
   public body: CANNON.Body;
   public health: number;
   public maxHealth: number;
+  public healthBarVisible = false;
   private flashableMaterials: THREE.Material[] = [];
   private hitFlashEndTs = 0;
   private hitFlashActive = false;
@@ -78,19 +79,16 @@ export abstract class Character {
     this.healthBar.style.backgroundColor = 'green';
     this.healthBar.style.width = '50px';
     this.healthBarContainer.appendChild(this.healthBar);
+    this.setHealthBarVisible(false);
 
     // Handle collision events.
     this.body.addEventListener("collide", (event) => {
       const other = event.body;
       if (other.mass <= 0) return;
       const relVel = this.body.velocity.vsub(other.velocity).length();
-      const damage = relVel * (other.mass / this.body.mass) * 2;
-      this.health -= damage;
-      this.health = Math.max(0, this.health);
-      if (damage > 0.5) {
+      if (relVel > 6) {
         this.hitFlashEndTs = performance.now() + 130;
       }
-      console.log(`${this.name} took ${damage.toFixed(2)} damage. Health: ${this.health.toFixed(2)}`);
     });
   }
 
@@ -123,6 +121,9 @@ export abstract class Character {
   }
   
   updateHealthBar(camera: THREE.Camera) {
+    if (!this.healthBarVisible) {
+      return;
+    }
     const pos = new THREE.Vector3();
     pos.setFromMatrixPosition(this.mesh.matrixWorld);
     pos.project(camera);
@@ -145,6 +146,38 @@ export abstract class Character {
 
   public isHitFlashing(): boolean {
     return this.hitFlashActive;
+  }
+
+  public applyDamage(amount: number): void {
+    if (amount <= 0) {
+      return;
+    }
+    this.health = Math.max(0, this.health - amount);
+    this.hitFlashEndTs = performance.now() + 160;
+  }
+
+  public healToFull(): void {
+    this.health = this.maxHealth;
+    this.hitFlashEndTs = 0;
+    this.hitFlashActive = false;
+  }
+
+  public heal(amount: number): void {
+    if (amount <= 0 || this.health <= 0) {
+      return;
+    }
+    this.health = Math.min(this.maxHealth, this.health + amount);
+  }
+
+  public setHealthBarVisible(visible: boolean): void {
+    this.healthBarVisible = visible;
+    this.healthBarContainer.style.display = visible ? "block" : "none";
+  }
+
+  public destroy(): void {
+    if (this.healthBarContainer.parentElement) {
+      this.healthBarContainer.parentElement.removeChild(this.healthBarContainer);
+    }
   }
 
   private collectFlashableMaterials(): void {

@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 public/golden_gate_hills_8k.hdr
+.playwright-cli/
+playwright-report/
+test-results/
+output/playwright/

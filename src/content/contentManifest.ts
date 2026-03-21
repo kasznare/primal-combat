@@ -1,0 +1,145 @@
+export type ContentManifestEntry = {
+  key: string;
+  label: string;
+  dataName: string;
+  presentationId: string;
+  audioTheme: string;
+  artStyle: "procedural";
+  tags: string[];
+  assetKey: string | null;
+};
+
+export const CONTENT_MANIFEST: Record<string, ContentManifestEntry> = {
+  Human: {
+    key: "Human",
+    label: "Human",
+    dataName: "Human (Average Adult)",
+    presentationId: "Human",
+    audioTheme: "heroic-brawler",
+    artStyle: "procedural",
+    tags: ["hero", "biped", "baseline"],
+    assetKey: null,
+  },
+  Bear: {
+    key: "Bear",
+    label: "Bear",
+    dataName: "Grizzly Bear",
+    presentationId: "Bear",
+    audioTheme: "heavy-fauna",
+    artStyle: "procedural",
+    tags: ["animal", "bruiser", "quadruped"],
+    assetKey: null,
+  },
+  MallardDuck: {
+    key: "MallardDuck",
+    label: "Mallard Duck",
+    dataName: "Mallard Duck",
+    presentationId: "MallardDuck",
+    audioTheme: "light-fauna",
+    artStyle: "procedural",
+    tags: ["animal", "flying", "small"],
+    assetKey: null,
+  },
+  Cheetah: {
+    key: "Cheetah",
+    label: "Cheetah",
+    dataName: "Cheetah",
+    presentationId: "Cheetah",
+    audioTheme: "predator-runner",
+    artStyle: "procedural",
+    tags: ["animal", "skirmisher", "quadruped"],
+    assetKey: null,
+  },
+  Housefly: {
+    key: "Housefly",
+    label: "Housefly",
+    dataName: "Housefly",
+    presentationId: "Housefly",
+    audioTheme: "tiny-annoyance",
+    artStyle: "procedural",
+    tags: ["animal", "flying", "tiny"],
+    assetKey: null,
+  },
+  SedanCar: {
+    key: "SedanCar",
+    label: "Sedan Car",
+    dataName: "Sedan Car",
+    presentationId: "SedanCar",
+    audioTheme: "steel-bruiser",
+    artStyle: "procedural",
+    tags: ["vehicle", "charger", "heavy"],
+    assetKey: null,
+  },
+  SportMotorcycle: {
+    key: "SportMotorcycle",
+    label: "Sport Motorcycle",
+    dataName: "Sport Motorcycle",
+    presentationId: "SportMotorcycle",
+    audioTheme: "street-racer",
+    artStyle: "procedural",
+    tags: ["vehicle", "charger", "agile"],
+    assetKey: null,
+  },
+  Bicycle: {
+    key: "Bicycle",
+    label: "Bicycle",
+    dataName: "Bicycle",
+    presentationId: "Bicycle",
+    audioTheme: "oddball-scout",
+    artStyle: "procedural",
+    tags: ["vehicle", "light", "oddball"],
+    assetKey: null,
+  },
+  GiantFly: {
+    key: "GiantFly",
+    label: "Giant Fly",
+    dataName: "Giant Fly",
+    presentationId: "GiantFly",
+    audioTheme: "mutant-buzz",
+    artStyle: "procedural",
+    tags: ["fictional", "flyer", "mutant"],
+    assetKey: null,
+  },
+  SentientVolcano: {
+    key: "SentientVolcano",
+    label: "Sentient Volcano",
+    dataName: "Sentient Volcano",
+    presentationId: "SentientVolcano",
+    audioTheme: "colossus-lava",
+    artStyle: "procedural",
+    tags: ["fictional", "colossus", "hazard"],
+    assetKey: null,
+  },
+  WalkingPencil: {
+    key: "WalkingPencil",
+    label: "Walking Pencil",
+    dataName: "Walking Pencil",
+    presentationId: "WalkingPencil",
+    audioTheme: "chaotic-scratcher",
+    artStyle: "procedural",
+    tags: ["fictional", "tiny", "joke"],
+    assetKey: null,
+  },
+  HumanoidRobot: {
+    key: "HumanoidRobot",
+    label: "Humanoid Robot",
+    dataName: "Humanoid Robot",
+    presentationId: "HumanoidRobot",
+    audioTheme: "synthetic-duelist",
+    artStyle: "procedural",
+    tags: ["fictional", "biped", "robot"],
+    assetKey: null,
+  },
+  Dragon: {
+    key: "Dragon",
+    label: "Dragon",
+    dataName: "Dragon",
+    presentationId: "Dragon",
+    audioTheme: "mythic-flyer",
+    artStyle: "procedural",
+    tags: ["fictional", "flyer", "boss"],
+    assetKey: null,
+  },
+};
+
+export const CONTENT_ENTRIES = Object.values(CONTENT_MANIFEST);

@@ -2,8 +2,11 @@ import * as THREE from 'three';
 import { Character, ICharacterOptions, MovementType } from './Character';
 
 export class MallardDuck extends Character {
-  constructor(physicsEngine: { characterMaterial: THREE.Material }) {
-    super({
+  constructor(
+    options: Partial<ICharacterOptions> | undefined,
+    physicsEngine: { characterMaterial: THREE.Material }
+  ) {
+    const defaults: ICharacterOptions = {
       name: "Mallard Duck",
       color: 0x228B22,
       weight: 1.2,
@@ -12,7 +15,16 @@ export class MallardDuck extends Character {
       maxAcceleration: 5,
       movementType: MovementType.Flying,
       health: 50,
-    }, physicsEngine);
+    };
+    super(
+      {
+        ...defaults,
+        ...options,
+        dimensions: options?.dimensions ?? defaults.dimensions,
+        health: options?.health ?? defaults.health,
+      },
+      physicsEngine
+    );
   }
 
   protected createMesh(): THREE.Group {

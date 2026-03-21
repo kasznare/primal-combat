@@ -2,8 +2,11 @@ import * as THREE from 'three';
 import { Character, ICharacterOptions, MovementType } from './Character';
 
 export class SedanCar extends Character {
-  constructor(physicsEngine: { characterMaterial: THREE.Material }) {
-    super({
+  constructor(
+    options: Partial<ICharacterOptions> | undefined,
+    physicsEngine: { characterMaterial: THREE.Material }
+  ) {
+    const defaults: ICharacterOptions = {
       name: "Sedan Car",
       color: 0x0000FF,
       weight: 1500,
@@ -12,7 +15,16 @@ export class SedanCar extends Character {
       maxAcceleration: 5,
       movementType: MovementType.Grounded,
       health: 200,
-    }, physicsEngine);
+    };
+    super(
+      {
+        ...defaults,
+        ...options,
+        dimensions: options?.dimensions ?? defaults.dimensions,
+        health: options?.health ?? defaults.health,
+      },
+      physicsEngine
+    );
   }
 
   protected createMesh(): THREE.Group {

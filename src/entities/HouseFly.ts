@@ -2,8 +2,11 @@ import * as THREE from 'three';
 import { Character, ICharacterOptions, MovementType } from './Character';
 
 export class Housefly extends Character {
-  constructor(physicsEngine: { characterMaterial: THREE.Material }) {
-    super({
+  constructor(
+    options: Partial<ICharacterOptions> | undefined,
+    physicsEngine: { characterMaterial: THREE.Material }
+  ) {
+    const defaults: ICharacterOptions = {
       name: "Housefly",
       color: 0x808080,
       weight: 0.00002,
@@ -12,7 +15,16 @@ export class Housefly extends Character {
       maxAcceleration: 20,
       movementType: MovementType.Flying,
       health: 10,
-    }, physicsEngine);
+    };
+    super(
+      {
+        ...defaults,
+        ...options,
+        dimensions: options?.dimensions ?? defaults.dimensions,
+        health: options?.health ?? defaults.health,
+      },
+      physicsEngine
+    );
   }
 
   protected createMesh(): THREE.Group {
