@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Character } from "./Character";
+import { createBearMaterials, resolveBearDimensions } from "./design/bearAssetDesign";
 
 function bearSegment(radius: number, length: number, material: THREE.Material, radial = 10): THREE.Mesh {
   const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 6, radial), material);
@@ -13,15 +14,20 @@ export class Bear extends Character {
     const group = new THREE.Group();
     group.userData.rigProfile = "bear";
 
-    const fur = new THREE.MeshStandardMaterial({ color: this.color, roughness: 0.98, metalness: 0.02 });
-    const darkFur = new THREE.MeshStandardMaterial({ color: 0x5a3420, roughness: 0.98 });
-    const noseMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.88, metalness: 0.06 });
-    const toothMat = new THREE.MeshLambertMaterial({ color: 0xe8dec0 });
-
-    const bodyLength = Math.max(this.dimensions.depth * 0.95, 2.1);
-    const bodyHeight = Math.max(this.dimensions.height * 0.9, 1.1);
-    const bodyWidth = Math.max(this.dimensions.width * 0.92, 1.1);
-    const shoulderY = bodyHeight * 0.8;
+    const { fur, darkFur, noseMat, toothMat } = createBearMaterials(this.color);
+    const {
+      bodyLength,
+      bodyHeight,
+      bodyWidth,
+      shoulderY,
+      frontLegX,
+      rearLegX,
+      frontLegZ,
+      rearLegZ,
+      upperLegLength,
+      lowerLegLength,
+      pawHeight,
+    } = resolveBearDimensions(this.dimensions);
 
     const torsoPivot = new THREE.Group();
     torsoPivot.name = "rig:torso";
@@ -129,14 +135,6 @@ export class Bear extends Character {
     tail.position.set(-bodyLength * 0.55, -bodyHeight * 0.06, 0);
     torsoPivot.add(tail);
 
-    const frontLegX = bodyLength * 0.32;
-    const rearLegX = -bodyLength * 0.32;
-    const frontLegZ = bodyWidth * 0.3;
-    const rearLegZ = bodyWidth * 0.28;
-    const upperLegLength = bodyHeight * 0.46;
-    const lowerLegLength = bodyHeight * 0.34;
-    const pawHeight = bodyHeight * 0.12;
-
     const frontLeftLegPivot = new THREE.Group();
     frontLeftLegPivot.name = "rig:frontLeftLeg";
     frontLeftLegPivot.position.set(frontLegX, shoulderY - bodyHeight * 0.08, -frontLegZ);
@@ -149,12 +147,12 @@ export class Bear extends Character {
 
     const rearLeftLegPivot = new THREE.Group();
     rearLeftLegPivot.name = "rig:rearLeftLeg";
-    rearLeftLegPivot.position.set(rearLegX, shoulderY - bodyHeight * 0.1, -rearLegZ);
+    rearLeftLegPivot.position.set(-rearLegX, shoulderY - bodyHeight * 0.1, -rearLegZ);
     group.add(rearLeftLegPivot);
 
     const rearRightLegPivot = new THREE.Group();
     rearRightLegPivot.name = "rig:rearRightLeg";
-    rearRightLegPivot.position.set(rearLegX, shoulderY - bodyHeight * 0.1, rearLegZ);
+    rearRightLegPivot.position.set(-rearLegX, shoulderY - bodyHeight * 0.1, rearLegZ);
     group.add(rearRightLegPivot);
 
     const upperLeg = bearSegment(bodyWidth * 0.11, upperLegLength * 0.62, fur, 8);

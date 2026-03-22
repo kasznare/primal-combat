@@ -282,31 +282,37 @@ export class CharacterAnimationSystem {
 
     if (attackVariant === 0 && attack > 0) {
       if (torso) {
-        torso.rotation.x -= attack * 0.16;
+        torso.rotation.x -= attack * 0.18;
+        torso.rotation.y -= attack * 0.1;
       }
       if (frontRightLeg) {
-        frontRightLeg.rotation.x -= attack * 1.12;
+        frontRightLeg.rotation.x -= attack * 1.28;
+      }
+      if (frontLeftLeg) {
+        frontLeftLeg.rotation.x += attack * 0.16;
       }
       if (head) {
-        head.rotation.y -= attack * 0.18;
+        head.rotation.y -= attack * 0.22;
+        head.rotation.x -= attack * 0.14;
       }
     }
 
     if (attackVariant === 1 && attack > 0) {
       if (torso) {
-        torso.rotation.x -= attack * 0.2;
+        torso.rotation.x -= attack * 0.24;
       }
       if (head) {
-        head.rotation.x -= attack * 0.72;
+        head.rotation.x -= attack * 0.88;
+        head.rotation.y += attack * 0.08;
       }
       if (jaw) {
-        jaw.rotation.x += attack * 0.58;
+        jaw.rotation.x += attack * 0.72;
       }
       if (frontLeftLeg) {
-        frontLeftLeg.rotation.x += attack * 0.22;
+        frontLeftLeg.rotation.x += attack * 0.3;
       }
       if (frontRightLeg) {
-        frontRightLeg.rotation.x += attack * 0.22;
+        frontRightLeg.rotation.x += attack * 0.26;
       }
     }
   }
