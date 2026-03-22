@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Character } from "./Character";
+import { createHumanMaterials, resolveHumanDimensions } from "./design/humanAssetDesign";
 
 function capsuleSegment(
   radius: number,
@@ -18,27 +19,22 @@ export class Human extends Character {
     const group = new THREE.Group();
     group.userData.rigProfile = "human";
 
-    const totalHeight = Math.max(this.dimensions.height, 1.7);
-    const totalWidth = Math.max(this.dimensions.width, 0.48);
-    const totalDepth = Math.max(this.dimensions.depth, 0.34);
-
-    const skin = new THREE.MeshLambertMaterial({ color: this.color });
-    const hair = new THREE.MeshLambertMaterial({ color: 0x2b231e });
-    const jacket = new THREE.MeshStandardMaterial({ color: 0x2c436d, roughness: 0.9, metalness: 0.05 });
-    const undershirt = new THREE.MeshLambertMaterial({ color: 0x8fa8c7 });
-    const pants = new THREE.MeshStandardMaterial({ color: 0x2b3138, roughness: 0.96 });
-    const boots = new THREE.MeshStandardMaterial({ color: 0x191c20, roughness: 0.95, metalness: 0.05 });
-    const detail = new THREE.MeshLambertMaterial({ color: 0xc5cbd4 });
-
-    const upperLegLength = totalHeight * 0.23;
-    const lowerLegLength = totalHeight * 0.23;
-    const bootHeight = totalHeight * 0.065;
-    const torsoHeight = totalHeight * 0.34;
-    const shoulderSpan = totalWidth * 1.4;
-    const upperArmLength = totalHeight * 0.17;
-    const lowerArmLength = totalHeight * 0.15;
-    const neckHeight = totalHeight * 0.06;
-    const headRadius = totalWidth * 0.44;
+    const {
+      totalHeight,
+      totalWidth,
+      totalDepth,
+      upperLegLength,
+      lowerLegLength,
+      bootHeight,
+      torsoHeight,
+      shoulderSpan,
+      upperArmLength,
+      lowerArmLength,
+      neckHeight,
+      headRadius,
+      hipOffset,
+    } = resolveHumanDimensions(this.dimensions);
+    const { skin, hair, jacket, undershirt, pants, boots, detail } = createHumanMaterials(this.color);
 
     const torsoPivot = new THREE.Group();
     torsoPivot.name = "rig:torso";
@@ -168,12 +164,12 @@ export class Human extends Character {
 
     const leftLegPivot = new THREE.Group();
     leftLegPivot.name = "rig:leftLeg";
-    leftLegPivot.position.set(-totalWidth * 0.22, bootHeight + upperLegLength + lowerLegLength, 0);
+    leftLegPivot.position.set(-hipOffset, bootHeight + upperLegLength + lowerLegLength, 0);
     group.add(leftLegPivot);
 
     const rightLegPivot = new THREE.Group();
     rightLegPivot.name = "rig:rightLeg";
-    rightLegPivot.position.set(totalWidth * 0.22, bootHeight + upperLegLength + lowerLegLength, 0);
+    rightLegPivot.position.set(hipOffset, bootHeight + upperLegLength + lowerLegLength, 0);
     group.add(rightLegPivot);
 
     const thigh = capsuleSegment(totalWidth * 0.115, upperLegLength * 0.68, pants, 10);
