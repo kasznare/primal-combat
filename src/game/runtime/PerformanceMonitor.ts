@@ -20,6 +20,12 @@ export class PerformanceMonitor {
     this.overlay.style.display = enabled ? "block" : "none";
   }
 
+  public destroy(): void {
+    if (this.overlay.parentElement) {
+      this.overlay.parentElement.removeChild(this.overlay);
+    }
+  }
+
   public update(
     frameMs: number,
     timestamp: number,

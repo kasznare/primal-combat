@@ -312,6 +312,12 @@ export class CharacterAnimationSystem {
   }
 
   private getAttackVariant(combatState: FighterCombatState, config: CharacterConfig): number {
+    if (combatState.attackId) {
+      const attackIndex = config.attacks.findIndex((entry) => entry.id === combatState.attackId);
+      if (attackIndex >= 0) {
+        return attackIndex % 2;
+      }
+    }
     if (!Number.isFinite(combatState.lastAttackAt)) {
       return 0;
     }

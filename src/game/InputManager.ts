@@ -3,23 +3,25 @@ import * as THREE from 'three';
 export class InputManager {
   private keyStates: { [key: string]: boolean } = {};
   private bufferedPresses: { [key: string]: number } = {};
+  private readonly onKeyDown = (event: KeyboardEvent) => {
+    if (this.shouldIgnoreEventTarget(event.target, event.code)) {
+      return;
+    }
+    if (!event.repeat) {
+      this.bufferedPresses[event.code] = performance.now();
+    }
+    this.keyStates[event.code] = true;
+  };
+  private readonly onKeyUp = (event: KeyboardEvent) => {
+    if (this.shouldIgnoreEventTarget(event.target, event.code)) {
+      return;
+    }
+    this.keyStates[event.code] = false;
+  };
 
   constructor() {
-    document.addEventListener('keydown', (event) => {
-      if (this.shouldIgnoreEventTarget(event.target, event.code)) {
-        return;
-      }
-      if (!event.repeat) {
-        this.bufferedPresses[event.code] = performance.now();
-      }
-      this.keyStates[event.code] = true;
-    });
-    document.addEventListener('keyup', (event) => {
-      if (this.shouldIgnoreEventTarget(event.target, event.code)) {
-        return;
-      }
-      this.keyStates[event.code] = false;
-    });
+    document.addEventListener('keydown', this.onKeyDown);
+    document.addEventListener('keyup', this.onKeyUp);
   }
 
   
@@ -93,6 +95,11 @@ export class InputManager {
 
   public clearBufferedPress(key: string): void {
     delete this.bufferedPresses[key];
+  }
+
+  public destroy(): void {
+    document.removeEventListener('keydown', this.onKeyDown);
+    document.removeEventListener('keyup', this.onKeyUp);
   }
 
   private shouldIgnoreEventTarget(target: EventTarget | null, code: string): boolean {

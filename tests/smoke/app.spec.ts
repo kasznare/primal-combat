@@ -181,3 +181,20 @@ test("space input does not reset the match after starting", async ({ page }) => 
   await expect(page.locator(".match-status")).toContainText("PLAYING");
   await expect(page.getByText("Get Ready")).toHaveCount(0);
 });
+
+test("asset lab exposes isolated asset preview controls", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Asset Lab" }).click();
+  await expect(page.getByRole("heading", { name: "Primal Combat Assets" })).toBeVisible();
+  await expect(page.getByLabel("Asset", { exact: true })).toHaveValue("Human");
+  await expect(page.getByLabel("Preview Pose")).toHaveValue("idle");
+
+  await page.getByLabel("Asset", { exact: true }).selectOption("Bear");
+  await page.getByLabel("Preview Pose").selectOption("secondary");
+  await page.getByLabel("Lighting Rig").selectOption("moonlit");
+
+  await expect(page.locator(".asset-summary__header strong")).toHaveText("Bear");
+  await expect(page.getByText("Bite Lunge")).toBeVisible();
+  await expect(page.locator('canvas[aria-label="Asset lab viewport"]')).toBeVisible();
+});

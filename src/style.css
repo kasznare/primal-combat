@@ -68,6 +68,8 @@ body {
   top: 1.1rem;
   left: 1.1rem;
   width: min(360px, calc(100vw - 2.2rem));
+  max-height: calc(100vh - 2.2rem);
+  overflow-y: auto;
   padding: 1rem 1rem 0.95rem;
   border: 1px solid var(--panel-border);
   border-radius: 0.95rem;
@@ -78,6 +80,15 @@ body {
   gap: 0.48rem;
   z-index: 2;
   animation: panel-enter 0.52s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+.ui-panel::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.ui-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 227, 180, 0.22);
 }
 
 .match-hud {
@@ -258,6 +269,26 @@ body {
   color: var(--muted);
 }
 
+.mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.1rem;
+}
+
+.mode-switch__tab {
+  margin-top: 0;
+  background: rgba(240, 179, 90, 0.08) !important;
+  color: var(--ink) !important;
+  border-color: rgba(255, 221, 165, 0.32) !important;
+}
+
+.mode-switch__tab--active {
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-strong) 100%) !important;
+  color: #1b1410 !important;
+  border-color: rgba(255, 220, 171, 0.55) !important;
+}
+
 .ui-panel label {
   font-size: 0.82rem;
   opacity: 0.94;
@@ -320,6 +351,67 @@ body {
   gap: 0.22rem;
   font-size: 0.76rem;
   color: rgba(243, 236, 223, 0.82);
+}
+
+.control-grid--lab {
+  margin-top: 0.35rem;
+}
+
+.asset-summary {
+  margin-top: 0.35rem;
+  padding: 0.72rem 0.78rem;
+  border-radius: 0.78rem;
+  border: 1px solid rgba(255, 230, 183, 0.18);
+  background: rgba(9, 13, 18, 0.36);
+  display: grid;
+  gap: 0.3rem;
+}
+
+.asset-summary__header,
+.asset-summary__meta,
+.asset-summary__stats,
+.asset-move-card__header,
+.asset-move-card__grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem 0.7rem;
+}
+
+.asset-summary__header strong {
+  font-size: 0.94rem;
+}
+
+.asset-summary__header span,
+.asset-summary__meta,
+.asset-summary__stats,
+.asset-move-card__header span,
+.asset-move-card__grid {
+  font-size: 0.72rem;
+  color: rgba(242, 234, 219, 0.76);
+}
+
+.asset-summary__header span,
+.asset-move-card__header span {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.asset-move-list {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.2rem;
+}
+
+.asset-move-card {
+  padding: 0.65rem 0.72rem;
+  border-radius: 0.74rem;
+  border: 1px solid rgba(255, 230, 183, 0.14);
+  background: rgba(8, 11, 16, 0.28);
+}
+
+.asset-move-card__header strong {
+  font-size: 0.82rem;
 }
 
 .perf-overlay {

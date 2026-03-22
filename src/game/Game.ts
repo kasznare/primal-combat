@@ -64,11 +64,15 @@ export class Game {
   private currentScene: SceneType = "Forest";
   private currentQuality: QualityLevel = "medium";
   private options?: GameOptions;
+  private container: HTMLElement;
   private lastFrameTime = 0;
   private hitstopUntil = 0;
   private lastHudEmitAt = 0;
+  private animationFrameId: number | null = null;
+  private destroyed = false;
 
   constructor(container: HTMLElement, options?: GameOptions) {
+    this.container = container;
     this.options = options;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -139,6 +143,24 @@ export class Game {
 
   public focusSurface(): void {
     this.renderer.domElement.focus({ preventScroll: true });
+  }
+
+  public destroy(): void {
+    this.destroyed = true;
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    window.removeEventListener("resize", this.onWindowResize);
+    this.controls.dispose();
+    this.inputManager.destroy();
+    this.performanceMonitor.destroy();
+    this.clearCharacters();
+    this.renderer.dispose();
+    this.renderer.forceContextLoss();
+    if (this.renderer.domElement.parentElement === this.container) {
+      this.container.removeChild(this.renderer.domElement);
+    }
   }
 
   public async unlockAudio(): Promise<void> {
@@ -235,7 +257,11 @@ export class Game {
   }
 
   animate = (timestamp: number) => {
-    requestAnimationFrame(this.animate);
+    if (this.destroyed) {
+      return;
+    }
+
+    this.animationFrameId = requestAnimationFrame(this.animate);
 
     if (!this.lastFrameTime) {
       this.lastFrameTime = timestamp;
